@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Keep README feature list in sync",
+      "description": "When a spec task list changes, updates the README Features section so it lists only what is actually built.",
+      "trigger": "PostFileSave",
+      "matcher": "\\.kiro/specs/[^/]+/tasks\\.md$",
+      "action": {
+        "type": "agent",
+        "prompt": "A spec tasks.md under .kiro/specs/ just changed. Update the '## Features' section of README.md (create the section, or README.md itself, if missing) so it reflects shipped work only: list a user-facing feature from docs/BRIEF.md's MVP scope as built only when every non-optional task that implements it is checked ([x]) in its spec's tasks.md, and list the rest under '### In progress'. Use one short plain-language line per feature, keep the brief's order, and do not touch any other README section. Do not edit any tasks.md file."
+      }
+    }
+  ]
+}
