@@ -7,6 +7,8 @@
   "scripts": {
     "postinstall": "bun scripts/mediapipe-assets.ts",
     "assets:mediapipe": "bun scripts/mediapipe-assets.ts",
+    "dev": "next dev",
+    "build": "next build",
     "test": "vitest run",
     "test:engine": "vitest run src/lib/morse",
     "test:watch": "vitest",
@@ -20,12 +22,14 @@
     "@types/react-dom": "^19.3.0",
     "fast-check": "^4.10.2",
     "jsdom": "^31.0.0",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
     "typescript": "6.0.3",
     "vitest": "^5.1.0"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "1.2.2"
+    "@mediapipe/tasks-vision": "1.2.2",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
   }
 }

@@ -11,7 +11,9 @@ export default defineConfig({
     // Engine and input tests run in node; component and hook tests opt into jsdom per file
     // with a `// @vitest-environment jsdom` docblock.
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts', 'next.config.test.ts'],
     passWithNoTests: true,
+    // Every test file starts with a global fetch that throws, so no test reaches the network.
+    setupFiles: ['./src/lib/expansion/test-support/setup.ts'],
   },
 });

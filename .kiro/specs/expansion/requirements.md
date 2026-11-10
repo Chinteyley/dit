@@ -46,7 +46,7 @@ Out of scope: UI rendering of suggestions, suggestion highlight and selection, s
 - **DIT_LLM_BASE_URL**: The server-only environment variable holding the Provider base URL.
 - **DIT_MODEL**: The server-only environment variable holding the Provider model ID.
 - **Provider_Base_URL**: The value of `DIT_LLM_BASE_URL` when set to a non-empty value, otherwise `https://api.fireworks.ai/inference/v1`.
-- **Default_Model**: A single exported constant in the expansion server code holding the ID of a small, fast Fireworks serverless model, chosen from Fireworks' current serverless model list at implementation time.
+- **Default_Model**: A single exported constant in the expansion server code holding the ID of a fast Fireworks serverless chat model whose thinking can be switched off, chosen from Fireworks' current serverless model list at implementation time.
 - **Max_Output_Tokens**: 200, the `max_tokens` value sent with every Provider request.
 - **Server_Timeout**: 4,000 ms, the longest time the Expand_Route waits for the Provider.
 - **Body_Limit**: 16,384 bytes, the largest request body the Expand_Route accepts.
@@ -238,7 +238,7 @@ Out of scope: UI rendering of suggestions, suggestion highlight and selection, s
 #### Acceptance Criteria
 
 1. IF a request passes every check in Requirement 12 and `DIT_LLM_API_KEY` is unset or set to the empty string, THEN THE Expand_Route SHALL respond with status 503 and Error_Body `not_configured` without contacting the Provider.
-2. WHEN a request passes every check in Requirement 12 and `DIT_LLM_API_KEY` is set to a non-empty value, THE Expand_Route SHALL send exactly one `POST` request using the platform `fetch` function to Provider_Base_URL with any trailing `/` characters removed, followed by `/chat/completions`. The request SHALL carry the headers `Authorization: Bearer <DIT_LLM_API_KEY>` and `Content-Type: application/json` and forward no header from the incoming request. Its JSON body SHALL hold `model`, a `messages` array of exactly two entries (the Prompt_Builder's system prompt with role `system` first, then its user message with role `user`), and `max_tokens` equal to Max_Output_Tokens. THE Expand_Route SHALL not retry after a failure or timeout.
+2. WHEN a request passes every check in Requirement 12 and `DIT_LLM_API_KEY` is set to a non-empty value, THE Expand_Route SHALL send exactly one `POST` request using the platform `fetch` function to Provider_Base_URL with any trailing `/` characters removed, followed by `/chat/completions`. The request SHALL carry the headers `Authorization: Bearer <DIT_LLM_API_KEY>` and `Content-Type: application/json` and forward no header from the incoming request. Its JSON body SHALL hold `model`, a `messages` array of exactly two entries (the Prompt_Builder's system prompt with role `system` first, then its user message with role `user`), and `max_tokens` equal to Max_Output_Tokens, plus `reasoning_effort` equal to `'none'` only when `model` equals Default_Model, and no other fields. THE Expand_Route SHALL not retry after a failure or timeout.
 3. WHERE `DIT_MODEL` is set to a non-empty value, THE Expand_Route SHALL send that value unchanged as the Provider request's `model`.
 4. IF `DIT_MODEL` is unset or set to the empty string, THEN THE Expand_Route SHALL send Default_Model as the Provider request's `model`.
 5. THE expansion server code SHALL define Default_Model as one exported constant and SHALL reference that constant wherever the default model ID is needed.

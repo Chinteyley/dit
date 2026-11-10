@@ -18,7 +18,7 @@ Every result carries `source: 'ai' | 'on-device'` so the UI can show which expan
 ### Sources
 
 - SpeakFaster: Cai et al., "Using large language models to accelerate communication for eye gaze typing users with ALS", *Nature Communications* 15, 9449 (2024), doi:10.1038/s41467-024-53873-3. It expands word-initial abbreviations into full phrases using the partner's last turn as context, and keeps only candidates whose initials match the typed letters. Dit copies three ideas: an initials-exact output filter (Requirement 11), the partner's last turn as the main context signal (Requirements 6.2 and 9.5), and a short candidate list (3).
-- Fireworks serverless inference is OpenAI-compatible at `https://api.fireworks.ai/inference/v1/chat/completions` with Bearer auth ([Fireworks serverless overview](https://docs.fireworks.ai/serverless/overview)). Fireworks may deprecate serverless models with about 2 weeks' notice ([Fireworks model overview](https://docs.fireworks.ai/models/overview)), so the default model is a single constant that a task re-checks. Fireworks' [recommended models guide](https://docs.fireworks.ai/guides/recommended-models) currently lists Qwen3 8B as the small model for fast extraction and classification.
+- Fireworks serverless inference is OpenAI-compatible at `https://api.fireworks.ai/inference/v1/chat/completions` with Bearer auth ([Fireworks serverless overview](https://docs.fireworks.ai/serverless/overview)). Fireworks may deprecate serverless models with about 2 weeks' notice ([Fireworks model overview](https://docs.fireworks.ai/models/overview)), so the default model is a single constant that a task re-checks. On 2026-11-10 the [Fireworks model library filtered to serverless](https://fireworks.ai/models?filter=Serverless) listed no non-reasoning instruct chat model, and the earlier Qwen3 8B candidate was no longer serverless. The [recommended models guide](https://docs.fireworks.ai/guides/recommended-models) lists DeepSeek V4.1 Flash 1017 first for fast extraction and classification and as the low-latency choice, and the [chat completions reference](https://docs.fireworks.ai/api-reference/post-chatcompletions) documents that `reasoning_effort: 'none'` switches DeepSeek V4.1 thinking off. It is priced at $0.30 per 1M input tokens and $1.20 per 1M output tokens ([serverless pricing](https://docs.fireworks.ai/serverless/pricing)).
 - Next.js App Router route handlers receive a WHATWG `Request` and return a `Response`; `export const runtime = 'nodejs'` selects the Node.js runtime.
 
 Content from these sources was rephrased for compliance with licensing restrictions.
@@ -490,8 +490,10 @@ The timer is cleared and the external listener removed on settlement. Results th
 ### provider.ts
 
 ```ts
-/** Candidate; the implementation task must confirm it against Fireworks' current serverless list. */
-export const DEFAULT_MODEL = 'accounts/fireworks/models/qwen3-8b';
+/** Chosen 2026-11-10 from Fireworks' serverless list; live prompt check pending a key (task 13.4). */
+export const DEFAULT_MODEL = 'accounts/fireworks/models/deepseek-v4p1-flash-1017';
+/** Sent as reasoning_effort only with DEFAULT_MODEL; switches its thinking off. */
+export const DEFAULT_MODEL_REASONING_EFFORT = 'none';
 export const DEFAULT_BASE_URL = 'https://api.fireworks.ai/inference/v1';
 export const MAX_OUTPUT_TOKENS = 200;
 export const SERVER_TIMEOUT_MS = 4_000;
@@ -520,9 +522,11 @@ export function callProvider(
 res = await fetch(providerUrl(base), {
   method: 'POST',
   headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ model: resolveModel(model), messages, max_tokens: 200 }),
+  body: JSON.stringify(providerRequestBody(messages, resolveModel(model))),
   signal,
 })
+// providerRequestBody: { model, messages, max_tokens: 200 }, plus reasoning_effort: 'none'
+// only when model === DEFAULT_MODEL (other models or providers may reject the field)
 if !(200 ≤ res.status ≤ 299) → { ok: false, 'upstream_failed' }   (body discarded)
 text = await res.text()
 ProviderReplySchema.safeParse(JSON.parse(text)) → content or 'upstream_failed'
@@ -540,9 +544,10 @@ Only the first choice is checked (13.6, 13.7).
 
 **Default_Model choice (13.5).** `DEFAULT_MODEL` is the only place the default ID appears; `resolveModel` and `.env.example` documentation refer to it. The implementation task must:
 
-1. Open Fireworks' current serverless model list (the models page filtered to serverless, or `GET https://api.fireworks.ai/inference/v1/models` with a key) and confirm the candidate is serverless.
-2. Prefer a small, fast instruction-tuned model that answers in plain text. The request body is fixed to `model`, `messages` and `max_tokens` (14.5), so there is no way to switch off a reasoning mode. A model that emits a reasoning preamble may use up the 200 tokens before the JSON. The candidate `qwen3-8b` is a hybrid-reasoning model, so this step must check with 3 sample prompts that it returns the JSON object within 200 tokens and about 1.5 s. If it does not, pick another small serverless instruct model from the list.
+1. Open Fireworks' current serverless model list (the models page filtered to serverless, or `GET https://api.fireworks.ai/inference/v1/models` with a key) and choose the model from it. Done on 2026-11-10 without a key: the list had no non-reasoning instruct chat model, so the choice is DeepSeek V4.1 Flash 1017, whose thinking `reasoning_effort: 'none'` switches off.
+2. A model that emits a reasoning preamble may use up the 200 tokens before the JSON. So the body carries `reasoning_effort: 'none'` (`DEFAULT_MODEL_REASONING_EFFORT`) when the model is `DEFAULT_MODEL`, and only then. A `DIT_MODEL` override gets exactly `model`, `messages` and `max_tokens`, because other models reject the field (GPT-OSS answers "Invalid reasoning effort: none", and MiniMax M2 requires reasoning).
 3. Record the chosen ID and the check date in a comment above the constant.
+4. Live check (task 13.4, manual, needs a key): send the 3 sample prompts and confirm each reply holds the JSON object within 200 tokens and about 1.5 s. If it does not, pick another fast serverless chat model whose thinking can be switched off.
 
 ### handler.ts
 
@@ -686,7 +691,7 @@ The React hook (in `src/hooks/`, owned by `conversation-ui`) provides `isOnline:
 | Expand_Request (client → route) | `{ text: string, context: { role: 'speaker' \| 'partner', text: string }[] }` | `text` 1–200 after Whitespace trim; `context` 0–10 Turns; Turn `text` 1–500 UTF-16 units |
 | Expand_Response (route → client, 200) | `{ suggestions: string[] }` | 0–3 items, each 1–200 units with a non-Whitespace char, distinct by `toLowerCase` |
 | Error_Body (route → client, non-200) | `{ error: ErrorCode }` | one of the 7 codes |
-| Provider request (route → Provider) | `{ model: string, messages: [{ role: 'system', content }, { role: 'user', content }], max_tokens: 200 }` | headers: `Authorization`, `Content-Type` only |
+| Provider request (route → Provider) | `{ model: string, messages: [{ role: 'system', content }, { role: 'user', content }], max_tokens: 200 }`, plus `reasoning_effort: 'none'` only when `model` is `DEFAULT_MODEL` | headers: `Authorization`, `Content-Type` only |
 | Provider reply (Provider → route) | `{ choices: [{ message: { content: string } }, …] }` | only `choices[0].message.content` is read |
 
 ### Status codes
@@ -914,7 +919,7 @@ For all schema-valid Expand_Requests and all env values (`apiKey` non-empty; `ba
 
 - URL `(baseUrl non-empty ? baseUrl : DEFAULT_BASE_URL)` with trailing `/` removed, plus `/chat/completions`;
 - method `POST` and headers exactly `{ authorization: 'Bearer ' + apiKey, 'content-type': 'application/json' }`, with nothing copied from the incoming request (which carries cookies, `x-forwarded-for` and custom headers);
-- a JSON body with keys exactly `model`, `messages`, `max_tokens`; `model` equals the env model if non-empty, else `DEFAULT_MODEL`; `messages` deep-equals `buildPrompt(req, classify(req.text))`; `max_tokens === 200`.
+- a JSON body with keys exactly `model`, `messages`, `max_tokens`, plus `reasoning_effort` iff `model === DEFAULT_MODEL` (then `reasoning_effort === 'none'`); `model` equals the env model if non-empty, else `DEFAULT_MODEL`; `messages` deep-equals `buildPrompt(req, classify(req.text))`; `max_tokens === 200`.
 
 **Validates: Requirements 13.2, 13.3, 13.4, 14.5**
 
@@ -1118,5 +1123,19 @@ Each property is one `fc.assert` tagged `// Feature: expansion, Property N: <tit
 
 ### What is not tested here
 
-- The real Provider and the real Default_Model. The implementation task for `provider.ts` includes a manual check against Fireworks with a real key (3 sample prompts), outside the automated suite.
+- The real Provider and the real Default_Model. Task 13.4 is a manual live check against Fireworks with a real key (3 sample prompts), run by a human outside the automated suite.
 - Rendering of suggestions and the source label, which belong to `conversation-ui`.
+
+## Implementation notes
+
+Deviations and additions made while implementing this design (2026-11-11):
+
+- **Zod string lengths.** Zod 4.6 measures `z.string().min()`/`.max()` in Unicode code points, not UTF-16 code units, so an astral character counts as 1. `schema.ts` therefore checks Turn and request text lengths with a `string.length` refinement (`utf16Length`), which keeps the UTF-16 counting of Requirements 1.1, 2.2 and 11.1. Array limits still use Zod's `.max()`.
+- **Word list source.** `WORD_LIST` holds 3,069 words: the 3,000 most frequent all-lowercase entries of hackerb9/gwordlist `frequency-alpha-alldicts.txt` (Google Books Ngram counts, CC BY 3.0), after dropping names, single letters other than `a` and `i`, two-letter fragments, Roman numerals and a few abbreviations and archaic forms, plus every phrase-bank word the slice misses. That list is dictionary-checked, so it lacks most inflected forms and contractions; the phrase-bank ones (`im`, `dont`, `didnt`, `youre`, `id`, `hurts`, `makes`, …) are added, which makes `im` and `id` typed alone `'words'`, not `'initials'`.
+- **Phrase bank order.** 190 phrases in category blocks from most to least urgent: needs, care, feelings, questions, social.
+- **Extra exports.** `lexicon.ts` exports `contextWordsOf` and `CONTEXT_WORD_MIN`; `classify.ts` exports `InputKind`; `provider.ts` exports `providerRequestBody` and `DEFAULT_MODEL_REASONING_EFFORT`; the barrel also exports the `Timers` type for the UI hook.
+- **Handler.** `handleExpand` catches every exception (502 `upstream_failed`) and then logs once, instead of `try/finally`, so it never throws. Non-2xx Provider bodies, and non-200 route bodies in the client, are cancelled unread.
+- **Deadline.** `runWithDeadline` returns `aborted` without starting the work when the external signal is already aborted.
+- **Client.** The initial typed text is `''`, so an initial `update('', …)` starts nothing. An `isOnline` that throws counts as offline. After `dispose`, `update` does nothing.
+- **Tooling.** `next.config.ts` is not empty: `headers()` sends `Content-Security-Policy: connect-src 'self'` on every route (a browser-level block on third-party requests, backing up the switched-off MediaPipe telemetry) and `Cache-Control: public, max-age=31536000, immutable` on `/mediapipe/:path*` (deferred from input-sources task 1.2); `next.config.test.ts` checks both. `tsconfig.json` needs `skipLibCheck` (Next 16.4 types use ES2024 `PromiseWithResolvers`) and holds the options `next build` writes (`allowJs`, `incremental`, `esModuleInterop`, `resolveJsonModule`, `.next/types` includes); `next-env.d.ts` and `*.tsbuildinfo` are gitignored, as current Next docs advise.
+- **Tests.** The no-network setup file defines the throwing `fetch` with `Object.defineProperty` rather than `vi.stubGlobal`, so a test's `vi.unstubAllGlobals()` restores the throwing one. `purity.test.ts` enforces the review checklists of tasks 5.2, 14.3 and 17.1 (no `process.env`, clock, randomness, storage, DOM, console or global fetch/timers in lib code; data files import nothing; the client does not import `on-device.ts`; the barrel exports no server-only module). The ESLint rule of task 5.2 waits for the ESLint config (conversation-ui task 1.3). Properties 19 to 21 skip generated requests whose JSON exceeds 16,384 bytes (see Open points). The exactly-4,000 ms case of Property 21 is pinned in `handler.test.ts`: the deadline timer is created before the Provider's reply timer, so it fires first and the route answers 504.
