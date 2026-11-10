@@ -150,7 +150,11 @@ const responseCaseArb: fc.Arbitrary<ResponseCase> = extraKeysArb.chain((extra) =
       .record({ list: distinctListArb(1, 2), pick: fc.nat(), at: fc.nat(), upper: fc.boolean() })
       .map(({ list, pick, at, upper }) => {
         const original = list[pick % list.length] ?? 'Yes';
-        const variant = upper ? original.toUpperCase() : original.toLowerCase();
+        const upperCased = original.toUpperCase();
+        // Some letters do not lowercase back from their uppercase form (U+1E9B "ẛ" → "Ṡ" → "ṡ"),
+        // so the uppercase variant is a duplicate only when its key matches; the lowercase one always is.
+        const variant =
+          upper && upperCased.toLowerCase() === original.toLowerCase() ? upperCased : original.toLowerCase();
         return { branch: 'case-duplicate', value: { ...extra, suggestions: insertAt(list, variant, at) } };
       }) },
     { weight: 1, arbitrary: fc.constant({ branch: 'suggestions-missing', value: { ...extra } }) },

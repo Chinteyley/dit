@@ -30,7 +30,7 @@ const NO_CODES: ReadonlySet<string> = new Set();
 export function createSwitchSource(deps: KeySourceDeps & { readonly store: SettingsStore }): SwitchSource {
   let learned: string | null = null;
   let codes: ReadonlySet<string> = NO_CODES;
-  const use = (code: string | null): void => {
+  const applyKey = (code: string | null): void => {
     learned = code;
     codes = code === null ? NO_CODES : new Set([code]);
   };
@@ -41,14 +41,14 @@ export function createSwitchSource(deps: KeySourceDeps & { readonly store: Setti
     start() {
       if (source.status() !== 'off') return;
       const read = deps.store.readSwitchKey();
-      use(read.ok ? validateSwitchKey(read.value) : null);
+      applyKey(read.ok ? validateSwitchKey(read.value) : null);
       source.start();
     },
     learnedKey: () => learned,
     setLearnedKey(code) {
       // The old key's press ends now, and its later keyup passes nothing (Req 5.13).
       releaseActive();
-      use(code === null ? null : validateSwitchKey(code));
+      applyKey(code === null ? null : validateSwitchKey(code));
     },
   };
 }

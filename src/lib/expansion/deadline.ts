@@ -33,7 +33,8 @@ export function runWithDeadline<T>(
     const inner = new AbortController();
     const external = opts.signal;
     let settled = false;
-    let handle: unknown;
+    // Set once the timer starts below; finish() may run before that (an already aborted signal).
+    let handle: unknown = undefined;
 
     const finish = (outcome: DeadlineOutcome<T>, abortWork: boolean): void => {
       if (settled) return;

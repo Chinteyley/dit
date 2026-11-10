@@ -1,0 +1,162 @@
+/*
+ * Dit design tokens and global styles (conversation-ui design "Design tokens", Requirements 10.5,
+ * 10.6, 11.8, 14.2 to 14.4 and 22). Components use the tokens through Tailwind utilities
+ * (bg-raised, text-muted, ...), so no component holds a raw colour. src/app/tokens.test.ts checks
+ * every pair of the design's contrast table against the colours below.
+ */
+@import 'tailwindcss' source('..');
+
+@theme {
+  /* Colours, with WCAG relative luminance L. Only these exist: the default palette is cleared. */
+  --color-*: initial;
+  --color-bg: #0B0D10; /* page background, L = 0.0040 */
+  --color-surface: #161A20; /* panels, stream band, dialog, L = 0.0101 */
+  --color-raised: #222831; /* keying idle fill, buttons, speaker bubble, L = 0.0208 */
+  --color-partner: #1A2433; /* partner bubble, L = 0.0172 */
+  --color-text: #F5F7FA; /* body and partner display text, L = 0.9284 */
+  --color-muted: #A9B1BC; /* labels, placeholders, hints, letter trail, L = 0.4351 */
+  --color-border: #7A8491; /* control and keying surface boundaries, L = 0.2268 */
+  --color-accent: #7CC4FF; /* highlight ring, keying pressed fill, newest symbol, L = 0.5098 */
+  --color-on-accent: #0B0D10; /* text and switch knob on the accent fill */
+  --color-focus: #FFD166; /* focus ring, L = 0.6782 */
+  --color-error: #FF9A8F; /* error and status marker, L = 0.4635 */
+
+  /* Type in rem, so it follows the browser font size (Req 22.5). Nothing is smaller than 18 px. */
+  --text-*: initial;
+  --text-base: 1.125rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.45;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 1.35;
+  --text-2xl: 2rem;
+  --text-2xl--line-height: 1.2;
+  /* Partner_Display: Current_Text and Last_Spoken (Req 14.2, 14.3); the 48rem rule below raises the floors. */
+  --text-display: clamp(2rem, 1rem + 4vw, 5rem);
+  --text-display--line-height: 1.1;
+  --text-last: clamp(1.5rem, 1rem + 2vw, 3rem);
+  --text-last--line-height: 1.2;
+
+  --size-target: 2.75rem; /* 44 px minimum pointer target (Req 22.6) */
+  --border-pressed: 4px; /* keying pressed border, at least 3 px (Req 10.5) */
+  --ring-width: 3px; /* focus ring, at least 2 px (Req 10.6, 22.6) */
+  --ring-offset: 4px;
+  --outline-highlight: 3px; /* highlighted suggestion (Req 13.2) */
+  --duration-fade: 150ms; /* the longest motion; none at all under reduced motion */
+  --sym-u-max: 1.5rem; /* largest Morse unit: a dot's diameter */
+
+  --animate-settle: settle var(--duration-fade) ease-out;
+  --animate-fade-in: fade-in var(--duration-fade) ease-out;
+}
+
+/* next/font sets --font-atkinson on <html>; inline keeps the utility pointing at that variable. */
+@theme inline {
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The two-column layout: at least 1024 px wide and landscape (design "Screen layout"). */
+@custom-variant wide (@media (min-width: 64rem) and (orientation: landscape));
+
+@media (min-width: 48rem) {
+  :root {
+    /* At 768 px and wider: Current_Text at least 48 px, Last_Spoken at least 32 px (Req 14.2, 14.3). */
+    --text-display: clamp(3rem, 1rem + 4vw, 5rem);
+    --text-last: clamp(2rem, 1rem + 2vw, 3rem);
+  }
+}
+
+/* A new symbol or letter settles in: opacity and scale only, at most 150 ms, never repeating. */
+@keyframes settle {
+  from {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    scrollbar-color: var(--color-border) transparent;
+    -webkit-tap-highlight-color: transparent;
+    /* The Morse unit outside a morse-scale container. */
+    --sym-u: 1rem;
+  }
+
+  body {
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-feature-settings: 'kern';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One focus indicator for every focusable element, whenever it has focus (Req 10.6, 22.6):
+     amber and dashed, offset outside any border, so a focused idle Keying_Surface never looks pressed. */
+  :focus {
+    outline: var(--ring-width) dashed var(--color-focus);
+    outline-offset: var(--ring-offset);
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+}
+
+/* The shared Morse unit for the Symbol_Stream and the Letter_Trail. Twelve dashes (3.25u each) and
+   eleven 1u gaps take 50u, so 12 symbols always fit in the 52u-wide container (Req 11.4). */
+@utility morse-scale {
+  container-type: inline-size;
+  --sym-u: min(var(--sym-u-max), calc(100cqi / 52));
+}
+
+/* Dot: a circle u across. Dash: a pill 3.25u long and u high (Req 11.1). */
+@utility glyph-dot {
+  width: var(--sym-u);
+  height: var(--sym-u);
+  border-radius: calc(infinity * 1px);
+}
+
+@utility glyph-dash {
+  width: calc(var(--sym-u) * 3.25);
+  height: var(--sym-u);
+  border-radius: calc(infinity * 1px);
+}
+
+/* Section labels ("Typing", "Last said"). Sentence case on purpose: Chrome applies text-transform to
+   accessible names, so all-caps styling would read the "Conversation history" name in capitals. */
+@utility section-label {
+  font-size: var(--text-base);
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+
+/* Reduced motion (Req 10.8, 11.5, 14.12, 15.7, 22.10): no animation, no movement, no smooth scroll.
+   Transitions are limited to opacity with no duration, which is within the 200 ms the spec allows.
+   Nothing in the app flashes or repeats (Req 22.11). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-property: opacity !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

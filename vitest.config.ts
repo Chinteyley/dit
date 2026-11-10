@@ -14,6 +14,7 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts', 'next.config.test.ts'],
     passWithNoTests: true,
     // Every test file starts with a global fetch that throws, so no test reaches the network.
-    setupFiles: ['./src/lib/expansion/test-support/setup.ts'],
+    // The component setup adds the dialog polyfill and the matchMedia stub in jsdom files only.
+    setupFiles: ['./src/lib/expansion/test-support/setup.ts', './src/components/test-setup.ts'],
   },
 });
