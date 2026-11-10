@@ -1,0 +1,19 @@
+{
+  "name": "dit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run",
+    "test:engine": "vitest run src/lib/morse",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "fast-check": "^4.10.2",
+    "typescript": "6.0.3",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+
+# env files (document variables in .env.example instead)
+.env*
+!.env.example
+
+# scratch directory for test and script temp files
+.tmp/
+
+# os
+.DS_Store
