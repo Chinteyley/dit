@@ -25,9 +25,9 @@ export function SuggestionList({ suggestions, source, highlight, currentText, on
   const hasSuggestions = suggestions.length > 0;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 short:gap-2">
       {hasSuggestions && source !== null ? <p className="section-label">Source: {SOURCE_LABEL[source]}</p> : null}
-      <ul aria-label="Suggestions" className="flex flex-col gap-2.5">
+      <ul aria-label="Suggestions" className="flex flex-col gap-2.5 short:gap-2">
         {suggestions.map((text, index) => {
           const current = highlight === index;
           return (
@@ -39,7 +39,7 @@ export function SuggestionList({ suggestions, source, highlight, currentText, on
                   onPick(index);
                   focusKeyingSurface();
                 }}
-                className={`min-h-(--size-target) min-w-0 flex-1 rounded-2xl border border-border bg-raised px-5 py-2.5 text-left text-xl font-medium text-text wrap-anywhere ${
+                className={`min-h-(--size-target) min-w-0 flex-1 rounded-2xl border border-border bg-raised px-5 py-2.5 text-left text-xl font-medium text-text wrap-anywhere short:py-1.5 ${
                   current ? 'ring-(length:--outline-highlight) ring-accent' : ''
                 }`}
               >

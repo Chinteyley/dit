@@ -11,6 +11,10 @@ describe('next.config headers', () => {
     ]);
   });
 
+  it('hides the development indicator', () => {
+    expect(nextConfig.devIndicators).toBe(false);
+  });
+
   it('restricts only connect-src, so scripts, styles, fonts and images load as before', async () => {
     const rules = (await nextConfig.headers?.()) ?? [];
     const policies = rules.flatMap((rule) => rule.headers.filter((header) => header.key === 'Content-Security-Policy'));

@@ -1,7 +1,7 @@
-import { DitApp } from '@/components/DitApp';
+import { DitRoot } from '@/components/DitRoot';
 
-// The onboarding-and-safety plug-ins (alarm, unknownPattern, legend, overlay) are passed here once
-// that spec exists; until then DitApp uses its inert stand-ins and an empty legend box.
+// A server component: DitRoot is the client boundary that builds the alarm, the Press_Router,
+// onboarding and the Cheat_Sheet once and hands them to DitApp.
 export default function Page() {
-  return <DitApp />;
+  return <DitRoot />;
 }

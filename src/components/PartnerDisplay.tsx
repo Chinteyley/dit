@@ -25,9 +25,9 @@ export function PartnerDisplay({ currentText, lastSpoken, flip }: PartnerDisplay
       role="group"
       aria-label="Partner display"
       style={flip ? { transform: 'rotate(180deg)' } : undefined}
-      className="flex flex-col gap-5 motion-safe:animate-fade-in"
+      className="flex flex-col gap-5 short:gap-3 motion-safe:animate-fade-in"
     >
-      <section aria-labelledby={typingId} className="flex flex-col gap-3">
+      <section aria-labelledby={typingId} className="flex flex-col gap-3 short:gap-1.5">
         <h2 id={typingId} className="section-label">
           Typing
         </h2>
@@ -35,7 +35,7 @@ export function PartnerDisplay({ currentText, lastSpoken, flip }: PartnerDisplay
           {currentText === '' ? <span className="text-muted">Nothing typed yet</span> : currentText}
         </p>
       </section>
-      <section aria-labelledby={lastId} className="flex flex-col gap-2">
+      <section aria-labelledby={lastId} className="flex flex-col gap-2 short:gap-1">
         <h2 id={lastId} className="section-label">
           Last said
         </h2>

@@ -20,6 +20,7 @@
   --color-on-accent: #0B0D10; /* text and switch knob on the accent fill */
   --color-focus: #FFD166; /* focus ring, L = 0.6782 */
   --color-error: #FF9A8F; /* error and status marker, L = 0.4635 */
+  --color-alarm: #5C0A14; /* Alarm_Card background and backdrop, L = 0.0254 (onboarding-and-safety) */
 
   /* Type in rem, so it follows the browser font size (Req 22.5). Nothing is smaller than 18 px. */
   --text-*: initial;
@@ -36,6 +37,9 @@
   --text-display--line-height: 1.1;
   --text-last: clamp(1.5rem, 1rem + 2vw, 3rem);
   --text-last--line-height: 1.2;
+  /* "I need help" on the Alarm_Card: at least 48 px at 320 px, up to 144 px (onboarding Req 1.3). */
+  --text-alarm-title: clamp(3rem, 2rem + 8vw, 9rem);
+  --text-alarm-title--line-height: 1.05;
 
   --size-target: 2.75rem; /* 44 px minimum pointer target (Req 22.6) */
   --border-pressed: 4px; /* keying pressed border, at least 3 px (Req 10.5) */
@@ -56,6 +60,9 @@
 
 /* The two-column layout: at least 1024 px wide and landscape (design "Screen layout"). */
 @custom-variant wide (@media (min-width: 64rem) and (orientation: landscape));
+/* Short viewports (800 px tall or less, such as 1024 x 768): a tighter vertical rhythm, so the
+   Keying_Surface and the Command_Legend stay on screen with three suggestions (Req 22.7). */
+@custom-variant short (@media (max-height: 50rem));
 
 @media (min-width: 48rem) {
   :root {

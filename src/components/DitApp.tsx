@@ -262,7 +262,7 @@ export function DitApp(props: DitAppProps) {
 
   return (
     <SessionApiContext value={api}>
-      <main className="mx-auto grid min-h-dvh w-full max-w-[120rem] grid-cols-1 gap-x-12 gap-y-6 px-5 py-6 [grid-template-areas:'header'_'primary'_'secondary'] sm:px-8 wide:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] wide:grid-rows-[auto_minmax(0,1fr)] wide:px-12 wide:[grid-template-areas:'header_header'_'primary_secondary']">
+      <main className="mx-auto grid min-h-dvh w-full max-w-[120rem] grid-cols-1 gap-x-12 gap-y-6 px-5 py-6 [grid-template-areas:'header'_'primary'_'secondary'] sm:px-8 short:gap-y-4 short:py-4 wide:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] wide:grid-rows-[auto_minmax(0,1fr)] wide:px-12 wide:[grid-template-areas:'header_header'_'primary_secondary']">
         <div className="[grid-area:header]">
           <h1 className="text-2xl font-semibold tracking-tight text-text">
             Dit
@@ -270,7 +270,7 @@ export function DitApp(props: DitAppProps) {
           </h1>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-6 [grid-area:primary]">
+        <div className="flex min-w-0 flex-col gap-6 [grid-area:primary] short:gap-4">
           <StatusMessages messages={snapshot.messages} onDismiss={controller.dismissMessage} />
           <PartnerDisplay currentText={session.currentText} lastSpoken={session.lastSpoken} flip={settings.flip} />
           <div className="morse-scale rounded-3xl bg-surface px-6 py-4">

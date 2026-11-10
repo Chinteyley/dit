@@ -107,7 +107,9 @@ const CONTEXTS: readonly (readonly Turn[])[] = [
   ],
 ];
 
-describe('expansion client properties', () => {
+// The LRU property drives up to 60 timer steps per run with async fake timers: about 0.5 s alone,
+// but 5 s or more while every test file runs in parallel, so the default 5 s timeout is too tight.
+describe('expansion client properties', { timeout: 60_000 }, () => {
   it('starts one expansion per quiet period of 300 ms', async () => {
     // Feature: expansion, Property 23: The client starts one expansion per quiet period
     const texts = ['i', 'iw', 'iwt', 'iwtgo', ' iwtgo ', 'i want wa', '', '  ', 'a'.repeat(201), 'b'.repeat(200)];

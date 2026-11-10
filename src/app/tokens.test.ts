@@ -102,6 +102,19 @@ const CONTRAST_TABLE: readonly Row[] = [
   { use: 'Destructive button text', fg: 'error', on: [['raised', 7.25]], needed: 4.5 },
 ];
 
+/** onboarding-and-safety design.md "Contrast pairs" (task 16.2): the Alarm_Card, legend, sheet and setup. */
+const SAFETY_CONTRAST_TABLE: readonly Row[] = [
+  { use: '"I need help", sound note and description on the alarm', fg: 'text', on: [['alarm', 12.97]], needed: 7 },
+  { use: 'Dismiss button boundary (text-coloured fill) on the alarm', fg: 'text', on: [['alarm', 12.97]], needed: 3 },
+  { use: 'Dismiss label on its fill', fg: 'on-accent', on: [['text', 18.13]], needed: 4.5 },
+  { use: 'Focus ring on the alarm card', fg: 'focus', on: [['alarm', 9.65]], needed: 3 },
+  { use: 'Glyphs (legend, sheet, practice)', fg: 'text', on: [['surface', 16.27], ['bg', 18.13]], needed: 3 },
+  { use: 'Legend, sheet and onboarding body text', fg: 'text', on: [['surface', 16.27], ['bg', 18.13]], needed: 4.5 },
+  { use: 'Muted hints (count, held indicator)', fg: 'muted', on: [['surface', 8.07]], needed: 4.5 },
+  { use: 'Control boundaries on panels', fg: 'border', on: [['surface', 4.6]], needed: 3 },
+  { use: 'Focus ring on panels', fg: 'focus', on: [['surface', 12.11]], needed: 3 },
+];
+
 describe('design tokens in globals.css', () => {
   it('defines every design token in @theme', () => {
     for (const name of [
@@ -116,6 +129,7 @@ describe('design tokens in globals.css', () => {
       '--color-on-accent',
       '--color-focus',
       '--color-error',
+      '--color-alarm',
       '--font-sans',
       '--text-base',
       '--text-display',
@@ -148,7 +162,11 @@ describe('design tokens in globals.css', () => {
     expect(luminance(hex('text'))).toBeGreaterThanOrEqual(0.85);
   });
 
-  for (const row of CONTRAST_TABLE) {
+  it('has a dark alarm background (onboarding-and-safety Req 1.7)', () => {
+    expect(luminance(hex('alarm'))).toBeCloseTo(0.0254, 4);
+  });
+
+  for (const row of [...CONTRAST_TABLE, ...SAFETY_CONTRAST_TABLE]) {
     it(`meets the contrast table: ${row.use}`, () => {
       for (const [bg, ratio] of row.on) {
         const actual = contrast(row.fg, bg);

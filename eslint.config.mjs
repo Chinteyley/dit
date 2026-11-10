@@ -78,6 +78,19 @@ const CONVERSATION_GLOBALS = [
   'self',
 ];
 
+/**
+ * onboarding-and-safety task 12.8 (Requirements 3.1, 5.8, 17.1): the alarm, chime, router and
+ * onboarding modules get time, audio, storage and timers injected; only src/lib/safety/browser.ts
+ * reads browser globals.
+ */
+const SAFETY_GLOBALS = [
+  ...CONVERSATION_GLOBALS,
+  'AudioContext',
+  'webkitAudioContext',
+  'speechSynthesis',
+  'SpeechSynthesisUtterance',
+];
+
 const CLOCK_AND_RANDOM = [
   { object: 'Date', property: 'now', message: 'Pass time in; do not read the clock here.' },
   { object: 'Math', property: 'random', message: 'Inject randomness; do not read Math.random here.' },
@@ -168,6 +181,21 @@ export default defineConfig([
       'no-restricted-globals': [
         'error',
         ...restrictedGlobals(CONVERSATION_GLOBALS, 'The session core is pure: browser access lives in browser.ts.'),
+      ],
+      'no-restricted-properties': ['error', ...CLOCK_AND_RANDOM],
+    },
+  },
+  {
+    name: 'dit/safety-onboarding-purity',
+    files: ['src/lib/safety/**/*.ts', 'src/lib/onboarding/**/*.ts'],
+    ignores: ['src/lib/safety/browser.ts', ...TEST_FILES],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        ...restrictedGlobals(
+          SAFETY_GLOBALS,
+          'Safety and onboarding logic gets clocks, audio, storage and timers injected: browser access lives in src/lib/safety/browser.ts.',
+        ),
       ],
       'no-restricted-properties': ['error', ...CLOCK_AND_RANDOM],
     },

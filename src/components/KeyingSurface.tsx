@@ -34,9 +34,10 @@ export function KeyingSurface({ id, pressed, ref }: KeyingSurfaceProps) {
       aria-describedby={hintId}
       data-pressed={pressed ? 'true' : 'false'}
       onContextMenu={(event) => event.preventDefault()}
-      // One column: at least 40vh (30vh from 768 px). Two columns: it fills the rest of the viewport
-      // height, at least 12rem, so it stays on screen while three suggestions show.
-      className="flex min-h-[max(40vh,12rem)] w-full flex-1 cursor-pointer touch-none select-none items-end rounded-3xl border-2 border-border bg-raised p-6 text-muted [-webkit-touch-callout:none] [-webkit-user-select:none] md:min-h-[max(30vh,12rem)] wide:min-h-48 data-[pressed=true]:border-(length:--border-pressed) data-[pressed=true]:border-text data-[pressed=true]:bg-accent data-[pressed=true]:text-on-accent"
+      // One column: at least 40vh (24vh from 768 px, so the Command_Legend below it stays on a
+      // 768 x 1024 screen). Two columns: it fills the rest of the viewport height, at least 12rem
+      // (10rem on short screens), so it stays on screen while three suggestions show (Req 22.7).
+      className="flex min-h-[max(40vh,12rem)] w-full flex-1 cursor-pointer touch-none select-none items-end rounded-3xl border-2 border-border bg-raised p-6 text-muted [-webkit-touch-callout:none] [-webkit-user-select:none] md:min-h-[max(24vh,12rem)] wide:min-h-48 wide:short:min-h-40 data-[pressed=true]:border-(length:--border-pressed) data-[pressed=true]:border-text data-[pressed=true]:bg-accent data-[pressed=true]:text-on-accent"
     >
       <span id={hintId} className="max-w-[36ch] text-lg text-pretty">
         Press to key Morse: short for dot, long for dash.

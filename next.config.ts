@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // No Next.js dev badge on screen (it shows up in demo recordings); compile and runtime errors
+  // still show in development.
+  devIndicators: false,
   async headers() {
     return [
       {
