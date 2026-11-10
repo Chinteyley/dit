@@ -11,5 +11,8 @@ node_modules/
 # scratch directory for test and script temp files
 .tmp/
 
+# MediaPipe WebAssembly, copied from node_modules by scripts/mediapipe-assets.ts on install
+public/mediapipe/*/wasm/
+
 # os
 .DS_Store

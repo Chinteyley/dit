@@ -8,8 +8,10 @@ export default defineConfig({
     alias: [{ find: /^@\//, replacement: srcDir }],
   },
   test: {
+    // Engine and input tests run in node; component and hook tests opt into jsdom per file
+    // with a `// @vitest-environment jsdom` docblock.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
     passWithNoTests: true,
   },
 });

@@ -5,15 +5,27 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "postinstall": "bun scripts/mediapipe-assets.ts",
+    "assets:mediapipe": "bun scripts/mediapipe-assets.ts",
     "test": "vitest run",
     "test:engine": "vitest run src/lib/morse",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "fast-check": "^4.10.2",
+    "jsdom": "^31.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "6.0.3",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.2"
   }
 }
