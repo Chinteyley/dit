@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Accessibility review of UI changes",
+      "description": "Asks the agent to check a changed component or page against the accessibility steering checklist before moving on.",
+      "trigger": "PostFileSave",
+      "matcher": "src/(components|app)/.*\\.tsx$",
+      "action": {
+        "type": "agent",
+        "prompt": "A UI file was just saved. Review only the file you changed against .kiro/steering/accessibility.md, using its review checklist: (1) can the speaker do this with presses alone, (2) contrast pairs meet 4.5:1 text / 3:1 UI / 7:1 partner display, (3) prefers-reduced-motion honoured and nothing flashes more than 3 times per second, (4) roles, accessible names and live-region behaviour are correct, (5) targets are at least 44 px and the layout works at 320 px and 200% zoom, (6) no meaning by colour alone, and partner controls return focus to the keying surface. Fix any violation now. If there is none, reply with one line saying the file passes."
+      }
+    }
+  ]
+}

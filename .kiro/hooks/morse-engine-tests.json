@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Morse engine property tests",
+      "description": "Runs the morse-engine unit and fast-check property tests whenever an engine file changes, so roundtrip, jitter, convergence and collision properties never silently break.",
+      "trigger": "PostFileSave",
+      "matcher": "src/lib/morse/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "[ -f package.json ] || exit 0; bun run test:engine --reporter=dot"
+      },
+      "timeout": 180
+    }
+  ]
+}

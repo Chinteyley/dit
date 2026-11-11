@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Typecheck and lint on save",
+      "description": "Runs tsc --noEmit and ESLint (eslint-config-next, includes jsx-a11y) after any TypeScript file is saved. Failures are fed back to the agent.",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(ts|tsx)$",
+      "action": {
+        "type": "command",
+        "command": "[ -f package.json ] || exit 0; bun run typecheck && bun run lint --quiet"
+      },
+      "timeout": 180
+    }
+  ]
+}

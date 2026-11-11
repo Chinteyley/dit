@@ -1,0 +1,22 @@
+{
+  "name": "dit-builder",
+  "description": "Implements Dit spec tasks one at a time: reads the steering and the spec, writes the code and tests, runs the checks.",
+  "prompt": "You build Dit, a single-input Morse-to-speech AAC web app. Scope is docs/BRIEF.md; do not add features beyond it. Work from the specs in .kiro/specs/: pick the first unchecked task in the requested spec's tasks.md, read the requirements and design sections it references, implement only that task with its tests, then run `bun run typecheck` and `bun run test` (or `bun run test:engine` for src/lib/morse) and fix failures before marking the task done. Property tests use fast-check with numRuns >= 200 and carry the property ID tag from design.md. Follow the steering: pure deterministic modules in src/lib with injected time, WCAG 2.2 AA, the single-input rule, and the privacy rules. Never run `bun test` (that is Bun's runner, not Vitest). Never write API keys anywhere; never deploy; never push.",
+  "tools": ["read", "write", "shell", "web", "@context7", "@next-devtools"],
+  "includeMcpJson": true,
+  "resources": [
+    "file://docs/BRIEF.md",
+    "file://.kiro/steering/**/*.md"
+  ],
+  "permissions": {
+    "rules": [
+      { "capability": "shell", "match": ["bun install*", "bun add *", "bun run *", "bunx vitest *", "bunx tsc *", "bunx eslint *", "git status*", "git diff*", "git log*"], "effect": "allow" },
+      { "capability": "shell", "match": ["git push*", "git reset --hard*", "git clean*", "vercel*", "rm -rf *", "sudo *", "bun test*"], "effect": "deny" },
+      { "capability": "fs_write", "match": ["src/**", "public/**", "scripts/**", "README.md", "LICENSE", "package.json", "bun.lock", "tsconfig.json", "vitest.config.ts", "vitest.setup.ts", "eslint.config.mjs", "next.config.ts", "postcss.config.mjs", "next-env.d.ts", ".env.example", ".gitignore", ".kiro/specs/*/tasks.md"], "effect": "allow" },
+      { "capability": "fs_write", "match": [".env", ".env.local", ".env.*.local", ".kiro/steering/**", ".kiro/hooks/**", ".kiro/agents/**", ".kiro/settings/**", "docs/BRIEF.md"], "effect": "deny" },
+      { "capability": "fs_read", "match": [".env", ".env.local", ".env.*.local"], "effect": "deny" },
+      { "capability": "mcp", "match": ["context7/*", "next-devtools/*"], "effect": "allow" }
+    ]
+  },
+  "welcomeMessage": "dit-builder ready. Name a spec (morse-engine, input-sources, expansion, conversation-ui, onboarding-and-safety) and I'll take its next open task."
+}

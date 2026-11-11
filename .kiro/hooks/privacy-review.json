@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Privacy review of expansion and storage code",
+      "description": "Enforces the product privacy rules whenever code that touches the network, storage or the camera changes.",
+      "trigger": "PostFileSave",
+      "matcher": "src/(app/api/.*|lib/expansion/.*|lib/conversation/storage.*|lib/input/blink/.*)\\.tsx?$",
+      "action": {
+        "type": "agent",
+        "prompt": "Code that touches the network, storage or the camera was just saved. Check the changed file against the privacy rules in .kiro/steering/product.md: no logging of typed text, context or model output (the route logs status and latency only); no server-side storage; only typed text and the last 10 turns are sent to /api/expand; camera frames, landmarks and blendshape scores never leave the device or reach storage; the LLM key is read server-side only and never appears in a response, header, log or error; no analytics or third-party requests (MediaPipe assets are self-hosted). Fix any violation now, or reply with one line saying the file passes."
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Verify after each spec task",
+      "description": "After a spec task is marked complete, runs the full typecheck and test suite so no task is closed on a red build.",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "command",
+        "command": "[ -f package.json ] || exit 0; bun run typecheck && bun run test --reporter=dot"
+      },
+      "timeout": 300
+    }
+  ]
+}
