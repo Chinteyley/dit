@@ -19,6 +19,7 @@ export type CheatSheetAction =
   | { readonly type: 'unknown'; readonly pattern: string }
   /** "All codes" */
   | { readonly type: 'partner-open' }
+  | { readonly type: 'page'; readonly page: number }
   | { readonly type: 'char-committed' }
   /** "Close codes" or Escape */
   | { readonly type: 'close' };
@@ -41,6 +42,8 @@ export function cheatSheetStep(s: CheatSheetState, a: CheatSheetAction, ctx: Che
     case 'partner-open':
       if (!s.open) return { open: true, reason: 'partner', pattern: null }; // 10.5
       return s.reason === 'partner' ? s : { ...s, reason: 'partner' }; // 8.9, 10.12: keep the pattern
+    case 'page':
+      return s.open && a.page !== (s.page ?? 0) ? { ...s, page: a.page } : s;
     case 'char-committed':
       return s.open ? CLOSED_SHEET : s; // 10.3, 10.4
     case 'close':

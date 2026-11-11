@@ -312,5 +312,5 @@ These corrections supersede earlier conflicting criteria in this document.
   - Verified: `SafetyNotices.test.tsx (granted/prompt/denied/unsupported)`.
 
 - [x] 20.1 Add learner switch-key snapshot/restore and wire the existing hook/no-op adapters; cover active and persisted rollback with fast-check.
-- [ ] 20.2 Prepare MediaPipe assets before every build and verify the build entry point plus required production build.
+- [x] 20.2 Prepare MediaPipe assets before every build and verify the build entry point plus required production build.
 - [x] 20.3 Rewrite last-round review requirements in conditional EARS form.

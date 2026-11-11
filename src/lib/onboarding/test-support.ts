@@ -94,6 +94,7 @@ const cheatSheetActionArb: fc.Arbitrary<CheatSheetAction> = fc.oneof(
   { weight: 2, arbitrary: fc.constant<CheatSheetAction>({ type: 'partner-open' }) },
   { weight: 3, arbitrary: fc.constant<CheatSheetAction>({ type: 'char-committed' }) },
   { weight: 2, arbitrary: fc.constant<CheatSheetAction>({ type: 'close' }) },
+  { weight: 2, arbitrary: fc.nat({ max: 100 }).map((page): CheatSheetAction => ({ type: 'page', page })) },
 );
 
 /** 0 to 200 actions, each with random onboardingOpen and alarmActive flags (mostly both false). */
@@ -129,6 +130,8 @@ export function referenceSheet(steps: readonly CheatSheetRunStep[]): readonly Ch
         if (!open) pattern = null;
         open = true;
         reason = 'partner';
+      } else if (action.type === 'page' && open) {
+        if (action.page !== (page ?? 0)) page = action.page;
       } else if (action.type === 'char-committed' && open) {
         close();
       } else if (action.type === 'close') {

@@ -50,10 +50,10 @@ export function buildCheatSheetModel(
     label: entry.label,
   }));
   return [
+    { name: 'Commands', entries: commandEntries },
     { name: 'Letters', entries: letters.sort(byCodePoint) },
     { name: 'Digits', entries: digits.sort(byCodePoint) },
     { name: 'Punctuation', entries: punctuation },
-    { name: 'Commands', entries: commandEntries },
   ];
 }
 

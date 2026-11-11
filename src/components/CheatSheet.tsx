@@ -7,6 +7,7 @@ import {
   entryAccessibleText,
   spokenCode,
   type CheatSheetStore,
+  type CheatSheetGroup,
 } from '@/lib/onboarding';
 import { usePanelPlacement } from '@/hooks/usePanelPlacement';
 import { CodeGlyphs } from './CodeGlyphs';
@@ -34,15 +35,35 @@ export function CheatSheet({ store }: CheatSheetProps) {
   const rect = usePanelPlacement(sheet.open, SHEET_MIN);
   // Rebuilt from the engine tables each time the sheet opens (Req 9.1).
   const allGroups = useMemo(() => (sheet.open ? buildCheatSheetModel() : []), [sheet.open]);
-  const pageSize = Math.max(2, Math.min(8, 2 * Math.floor(((rect?.height ?? 480) - 240) / 60)));
-  const total = allGroups.reduce((n, group) => n + group.entries.length, 0);
-  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const columns = Math.max(2, Math.floor(((rect?.width ?? 432) - 24) / 200));
+  const pageGroups = useMemo(() => {
+    // Reserve the unknown-pattern row even when empty so six-dot paging cannot resize pages.
+    const height = Math.max(92, (rect?.height ?? 480) - 292);
+    const result: CheatSheetGroup[][] = [];
+    let current: CheatSheetGroup[] = [];
+    let remaining = height;
+    for (const group of allGroups) {
+      const rowHeight = group.name === 'Commands' ? 60 : 36;
+      let offset = 0;
+      while (offset < group.entries.length) {
+        if (remaining < 32 + rowHeight && current.length > 0) {
+          result.push(current);
+          current = [];
+          remaining = height;
+        }
+        const rows = Math.max(1, Math.floor((remaining - 32) / rowHeight));
+        const entries = group.entries.slice(offset, offset + rows * columns);
+        current.push({ ...group, entries });
+        remaining -= 32 + Math.ceil(entries.length / columns) * rowHeight;
+        offset += entries.length;
+      }
+    }
+    if (current.length > 0) result.push(current);
+    return result;
+  }, [allGroups, columns, rect?.height]);
+  const pages = Math.max(1, pageGroups.length);
   const page = (sheet.page ?? 0) % pages;
-  const groups = allGroups.map((group, index) => {
-    const offset = allGroups.slice(0, index).reduce((n, previous) => n + previous.entries.length, 0);
-    const entries = group.entries.filter((_, i) => offset + i >= page * pageSize && offset + i < (page + 1) * pageSize);
-    return { ...group, entries };
-  }).filter((group) => group.entries.length > 0);
+  const groups = pageGroups[page] ?? [];
 
   // Review 24.1: any committed character or command closes the sheet; focus follows only from inside it.
   useEffect(
@@ -100,7 +121,7 @@ export function CheatSheet({ store }: CheatSheetProps) {
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-3">
-        <p className="text-lg">Page {page + 1} of {pages}. Six dots (......): next page. Letter or command: close.</p>
+        <p className="text-lg">Six dots (......): next page. Letter or command: close.</p>
         {sheet.pattern !== null ? (
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl bg-raised px-2 py-1 text-lg font-medium">
             {NOT_A_CODE_LABEL}
@@ -114,7 +135,7 @@ export function CheatSheet({ store }: CheatSheetProps) {
           <div key={group.name} className="flex flex-col gap-1">
             <h3 className="section-label">{CHEAT_SHEET_GROUP_HEADINGS[group.name]}</h3>
             {/* Glyphs scale to each cell; paging keeps the keying surface uncovered. */}
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <ul className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
               {group.entries.map((entry) => (
                 <li key={entry.code} className="min-w-0">
                   {/* Characters: the letter beside its code. Commands: the label above it. */}
@@ -135,6 +156,25 @@ export function CheatSheet({ store }: CheatSheetProps) {
             </ul>
           </div>
         ))}
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 pb-3">
+        <button
+          type="button"
+          disabled={pages === 1}
+          onClick={() => store.dispatch({ type: 'page', page: (page + pages - 1) % pages })}
+          className="min-h-(--size-target) min-w-(--size-target) rounded-xl border border-border bg-raised px-3 text-lg disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <p aria-live="polite" aria-atomic="true" className="text-lg tabular-nums">Page {page + 1} of {pages}</p>
+        <button
+          type="button"
+          disabled={pages === 1}
+          onClick={() => store.dispatch({ type: 'page', page: (page + 1) % pages })}
+          className="min-h-(--size-target) min-w-(--size-target) rounded-xl border border-border bg-raised px-3 text-lg disabled:opacity-50"
+        >
+          Next
+        </button>
       </div>
     </section>
   );

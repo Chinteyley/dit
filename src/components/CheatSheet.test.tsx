@@ -47,9 +47,9 @@ describe('CheatSheet', () => {
     act(() => store.dispatch({ type: 'partner-open' }));
     const allEntries = buildCheatSheetModel().flatMap((group) => group.entries);
     const seen = new Set<string>();
-    for (let page = 0; page < Math.ceil(allEntries.length / 8); page += 1) {
+    const pages = Number(/of (\d+)/.exec(within(region()).getByText(/^Page 1 of/).textContent ?? '')?.[1]);
+    for (let page = 0; page < pages; page += 1) {
       const sheet = region();
-      expect(within(sheet).getAllByRole('listitem').length).toBeLessThanOrEqual(8);
       for (const entry of allEntries) if (within(sheet).queryByText(entryAccessibleText(entry))) seen.add(entry.code);
       act(() => store.dispatch({ type: 'unknown', pattern: '......' }));
     }
@@ -77,7 +77,7 @@ describe('CheatSheet', () => {
     expect(document.activeElement).toBe(surface());
     expect(region().getAttribute('aria-modal')).toBeNull();
     const user = userEvent.setup();
-    within(region()).getByRole('button', { name: 'Close codes' }).focus();
+    within(region()).getByRole('button', { name: 'Next' }).focus();
     await user.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'After the sheet' }));
     expect(document.querySelectorAll('[inert]')).toHaveLength(0);
@@ -155,12 +155,36 @@ it.each([[1280, 800], [820, 1180], [393, 852]])('makes every code reachable by s
   const seen = new Set<string>();
   const pagesText = within(region()).getByText(/^Page 1 of/).textContent ?? '';
   const pages = Number(/of (\d+)/.exec(pagesText)?.[1]);
-  expect(pages).toBeGreaterThan(1);
+  expect(pages).toBeGreaterThanOrEqual(1);
   for (let i = 0; i < pages; i += 1) {
-    expect(within(region()).getAllByRole('listitem').length).toBeLessThanOrEqual(8);
     for (const entry of entries) if (within(region()).queryByText(entryAccessibleText(entry))) seen.add(entry.code);
     act(() => store.dispatch({ type: 'unknown', pattern: '......' }));
   }
   expect(seen.size).toBe(entries.length);
   expect(within(region()).getByText(/^Page 1 of/)).toBeDefined();
+});
+
+it('puts commands first and gives the partner page controls with polite page announcements', async () => {
+  const { store } = renderSheet();
+  act(() => store.dispatch({ type: 'partner-open' }));
+  expect(within(region()).getAllByRole('heading', { level: 3 })[0]?.textContent).toBe('Commands');
+  const live = region().querySelector('[aria-live="polite"]');
+  expect(live?.textContent).toMatch(/^Page 1 of \d+$/);
+  const user = userEvent.setup();
+  await user.click(within(region()).getByRole('button', { name: 'Next' }));
+  expect(live?.textContent).toMatch(/^Page 2 of \d+$/);
+  await user.click(within(region()).getByRole('button', { name: 'Previous' }));
+  expect(live?.textContent).toMatch(/^Page 1 of \d+$/);
+});
+
+it('shows every code together when the panel has room', () => {
+  vi.stubGlobal('innerWidth', 1920);
+  vi.stubGlobal('innerHeight', 1080);
+  const { store } = renderSheet();
+  act(() => store.dispatch({ type: 'partner-open' }));
+  const entries = buildCheatSheetModel().flatMap((g) => g.entries);
+  expect(within(region()).getAllByRole('listitem')).toHaveLength(entries.length);
+  expect(within(region()).getByText('Page 1 of 1')).toBeDefined();
+  expect(within(region()).getByRole<HTMLButtonElement>('button', { name: 'Previous' }).disabled).toBe(true);
+  expect(within(region()).getByRole<HTMLButtonElement>('button', { name: 'Next' }).disabled).toBe(true);
 });

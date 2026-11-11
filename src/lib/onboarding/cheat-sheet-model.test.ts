@@ -7,8 +7,8 @@ const group = (name: string): readonly CheatSheetEntry[] => groups.find((g) => g
 
 describe('buildCheatSheetModel with the real tables', () => {
   it('has 4 groups with 26 + 10 + 13 + 4 entries (Requirements 9.1, 9.2)', () => {
-    expect(groups.map((g) => g.name)).toEqual(['Letters', 'Digits', 'Punctuation', 'Commands']);
-    expect(groups.map((g) => g.entries.length)).toEqual([26, 10, 13, 4]);
+    expect(groups.map((g) => g.name)).toEqual(['Commands', 'Letters', 'Digits', 'Punctuation']);
+    expect(groups.map((g) => g.entries.length)).toEqual([4, 26, 10, 13]);
   });
 
   it('shows letters in uppercase, a to z, and digits 0 to 9 (Requirement 9.5)', () => {

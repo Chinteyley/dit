@@ -27,8 +27,8 @@ describe('Cheat_Sheet_Model properties', () => {
         const kept = (ch: string): boolean =>
           Object.hasOwn(chars, ch) && ch !== '+' && !commandCodes.has(chars[ch] ?? '');
 
-        expect(model.map((g) => g.name)).toEqual(['Letters', 'Digits', 'Punctuation', 'Commands']);
-        const [letters, digits, punctuation, commandGroup] = model.map((g) => g.entries);
+        expect(model.map((g) => g.name)).toEqual(['Commands', 'Letters', 'Digits', 'Punctuation']);
+        const [commandGroup, letters, digits, punctuation] = model.map((g) => g.entries);
         const charsOf = (entries: typeof letters): string[] =>
           (entries ?? []).map((e) => (e.kind === 'char' ? e.char : `!${e.command}`));
 

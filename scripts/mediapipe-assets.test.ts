@@ -83,9 +83,11 @@ describe('prepareMediapipeAssets', () => {
     expect(result.error).toContain(MODEL_SHA256);
   });
 
-  it('copies only the two WebAssembly files into public/mediapipe/1.2.2/wasm/', async () => {
+  it('prepares wasm from cached dependencies without postinstall or network', async () => {
     fakePackage(MEDIAPIPE_VERSION);
     writeModel(readFileSync(realModelPath));
+
+    expect(existsSync(join(publicAssetDir(root), 'wasm'))).toBe(false);
 
     const result = await prepareMediapipeAssets({ root });
 

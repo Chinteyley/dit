@@ -8,7 +8,7 @@
     "postinstall": "bun scripts/mediapipe-assets.ts",
     "assets:mediapipe": "bun scripts/mediapipe-assets.ts",
     "dev": "next dev",
-    "build": "next build",
+    "build": "bun scripts/mediapipe-assets.ts && next build",
     "test": "vitest run",
     "test:engine": "vitest run src/lib/morse",
     "test:watch": "vitest",
