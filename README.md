@@ -14,14 +14,15 @@ Every speaker function works with the one input alone. The partner uses ordinary
 
 ## Features
 
-- **One-input keyer.** Space, Enter, a switch, a tap on the keying area or an opt-in webcam blink; how long you press decides dot or dash.
+- **One-input keyer.** Space, Enter, a switch, a press anywhere on the main panel or an opt-in webcam blink; how long you press decides dot or dash.
 - **Adaptive timing engine.** Reads dots, dashes and pauses at the speaker's own pace, starting slow at 6 words per minute and following their rhythm as they key.
+- **Live Morse tape.** The dots and dashes appear large under the sentence as they are keyed, newest in the accent colour, and each finished letter is written under its code. A press changes only a small ring at the head of the tape, which turns into an accent target while the press is held, so the screen never flashes.
 - **Command codes.** Morse patterns that speak, pick the next suggestion, delete a letter or sound a help alarm, with a legend always on screen and a sheet of every code one tap or one unknown pattern away.
-- **Abbreviation expansion.** Initials or partial words become up to 3 full sentences that fit the conversation; the partner can tap one to speak it.
+- **Abbreviation expansion.** Initials or partial words become up to 3 full sentences that fit the conversation, shown as numbered cards with the one that will be spoken clearly marked; the partner can tap one to speak it.
 - **Conversation context.** An optional Listen toggle or a typed line from the partner gives the expansion context, and every spoken line joins the conversation history.
 - **Speech.** The chosen sentence is spoken aloud in a voice and rate you pick; the history stays on this device.
 - **Expansion backend.** `POST /api/expand` asks an OpenAI-compatible model, an on-device expander answers when there is no key or no network, and the screen says which one answered.
-- **Partner display.** A large, high-contrast view of the current text and the last sentence, readable across a bed and able to flip 180°.
+- **Partner display.** The sentence being typed and the last sentence said lead the screen in large, high-contrast type, readable across a bed and able to flip 180°. The history, the partner's typed line, Listen and Settings sit in a quieter panel beside or below.
 - **Onboarding.** Pick an input, make 5 practice presses to set the speed and learn the commands in under a minute.
 
 ### Pending manual checks
@@ -67,6 +68,7 @@ How the expansion call works:
 
 - The browser waits 300 ms after the last change, then calls `/api/expand` with a 5 s timeout, and falls back to the on-device expander on any failure.
 - The route checks that the request comes from the same origin, caps the body at 16 KB, validates it with Zod, calls the model with a 4 s timeout and `max_tokens` 200, and limits each IP address to 30 requests per 60 s.
+- The route asks the model for up to 5 candidate sentences and keeps the first 3 that pass the filter. For initials, a sentence passes only when it has one word per typed letter, in order, and each word starts with its letter.
 
 ## Limitations
 

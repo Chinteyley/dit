@@ -4,7 +4,7 @@ import { classify, type InputClassification } from './classify';
 import { filterSuggestions } from './filter';
 import { initialsOf } from './normalize';
 import { PHRASE_BANK } from './phrase-bank';
-import { ExpandResponseSchema } from './schema';
+import { CANDIDATES_MAX, ExpandResponseSchema } from './schema';
 import {
   PROP_RUNS,
   initialsLettersArb,
@@ -16,9 +16,10 @@ import {
 } from './test-support/arbitraries';
 import { WORD_LIST } from './word-freq';
 
-/** The pipeline of Requirement 11 written out step by step. */
+/** The pipeline of Requirement 11 written out step by step, starting with the window of 11.9. */
 function refFilter(list: readonly string[], cls: InputClassification): string[] {
-  const trimmed = list.map((s) => s.replace(/^[ \t\n\r]+/, '').replace(/[ \t\n\r]+$/, ''));
+  const head = list.slice(0, CANDIDATES_MAX);
+  const trimmed = head.map((s) => s.replace(/^[ \t\n\r]+/, '').replace(/[ \t\n\r]+$/, ''));
   const sized = trimmed.filter((s) => s.length >= 1 && s.length <= 200);
   const matching = cls.kind === 'initials' ? sized.filter((s) => initialsOf(s) === cls.initials) : sized;
   const firsts: string[] = [];

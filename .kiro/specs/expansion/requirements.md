@@ -39,7 +39,8 @@ Out of scope: UI rendering of suggestions, suggestion highlight and selection, s
 - **On_Device_Expander**: The pure function in `src/lib/expansion/on-device.ts` that takes typed text and a context (a list of Turns) and returns a list of Suggestions without network access.
 - **Prompt_Builder**: The pure function in `src/lib/expansion/prompt.ts` that builds the system prompt and user message for the model from an Expand_Request and its Input_Classification.
 - **Output_Parser**: The pure function in `src/lib/expansion/prompt.ts` that turns raw model output text into a list of Suggestions.
-- **Suggestion_Filter**: The pure function in `src/lib/expansion/prompt.ts` that trims, length-checks, deduplicates, initials-checks and caps a list of candidate Suggestions.
+- **Suggestion_Filter**: The pure function in `src/lib/expansion/filter.ts` that reads the first Candidate_Max entries of a list of candidate Suggestions and trims, length-checks, initials-checks, deduplicates and caps them.
+- **Candidate_Max**: 5, the most candidate sentences the Prompt_Builder asks the model for and the Suggestion_Filter reads.
 - **Expand_Route**: The `POST` route handler in `src/app/api/expand/route.ts`.
 - **Provider**: Any OpenAI-compatible chat-completions endpoint, reached at `POST {Provider_Base_URL}/chat/completions` with the platform `fetch` function and no vendor SDK.
 - **DIT_LLM_API_KEY**: The server-only environment variable holding the Provider API key, sent as `Authorization: Bearer <key>`.
@@ -179,7 +180,7 @@ Out of scope: UI rendering of suggestions, suggestion highlight and selection, s
 #### Acceptance Criteria
 
 1. THE Prompt_Builder SHALL return exactly two messages for the Provider's `messages` array, in this order: one message with role `system` holding the system prompt and one message with role `user` holding the user message.
-2. THE Prompt_Builder SHALL produce a system prompt that is the same fixed string for every Expand_Request, contains no request text and no context Turn text, and tells the model three things: expand the speaker's abbreviated input into 1 to 3 natural first-person sentences the speaker might mean, use the conversation context, and answer with only a JSON object of the form `{"suggestions": [...]}` with no other text.
+2. THE Prompt_Builder SHALL produce a system prompt that is the same fixed string for every Expand_Request, contains no request text and no context Turn text, and tells the model three things: expand the speaker's abbreviated input into up to Candidate_Max (5) different natural first-person sentences the speaker might mean, most likely first; use the conversation context; and answer with only a JSON object of the form `{"suggestions": [...]}` with no other text. (Changed on 2026-11-11 in the design polish pass: the prompt asked for 1 to 3 sentences, and after the initials check of Requirement 11 criterion 2 fewer than 3 often remained.)
 3. WHEN the Input_Classification kind is `'initials'`, THE Prompt_Builder SHALL state the Initials_Letters and the number of letters in the user message. It SHALL also instruct the model that each sentence must have exactly one word per letter, in the same order, and that each word must start with the matching letter (for example, `iwtgo` gives 5 words starting with `i`, `w`, `t`, `g`, `o`).
 4. WHEN the Input_Classification kind is `'partial'`, `'words'` or `'empty'`, THE Prompt_Builder SHALL include the trimmed typed text unchanged in the user message. It SHALL instruct the model to start each sentence with the speaker's typed words in the order typed. WHEN the kind is `'partial'`, it SHALL also instruct the model to complete the last typed token into a word that starts with that token.
 5. THE Prompt_Builder SHALL include the text of every context Turn in the user message, oldest first, each labelled with its role `speaker` or `partner`. It SHALL mark the latest Turn with role `'partner'` as the line the speaker is replying to. WHEN the context is empty, it SHALL state in the user message that there is no conversation context.
@@ -210,10 +211,11 @@ Out of scope: UI rendering of suggestions, suggestion highlight and selection, s
 2. WHEN the Input_Classification kind is `'initials'`, THE Suggestion_Filter SHALL drop each trimmed candidate whose Initials_Of is not exactly equal to the Initials_Letters, including candidates that have no Normalized_Tokens.
 3. WHEN the Input_Classification kind is `'partial'`, `'words'` or `'empty'`, THE Suggestion_Filter SHALL keep every candidate that passes criterion 1, without an initials check.
 4. WHEN two candidates that remain after criteria 1 to 3 are equal after trimming when compared case-insensitively, using the same comparison the Schema_Module uses for an Expand_Response, THE Suggestion_Filter SHALL keep only the one that appears first in the input list.
-5. THE Suggestion_Filter SHALL apply its steps in this order: trimming and length check (criterion 1), initials check (criteria 2 and 3), deduplication (criterion 4), then the cap (criterion 6).
+5. THE Suggestion_Filter SHALL apply its steps in this order: the window of the first Candidate_Max entries (criterion 9), trimming and length check (criterion 1), initials check (criteria 2 and 3), deduplication (criterion 4), then the cap (criterion 6). (Changed on 2026-11-11 in the design polish pass: the window step comes first.)
 6. THE Suggestion_Filter SHALL return the trimmed text of at most the first 3 candidates that remain after deduplication, in their original input order.
 7. IF the input list is empty or no candidate remains after filtering, THEN THE Suggestion_Filter SHALL return an empty list without throwing.
 8. THE Suggestion_Filter SHALL return, for every list of strings of any length and for every Input_Classification, a list that the Schema_Module accepts as the `suggestions` of an Expand_Response, and SHALL leave the input list unchanged.
+9. THE Suggestion_Filter SHALL read only the first Candidate_Max (5) entries of the input list, whether or not they pass criteria 1 to 4, and SHALL ignore every later entry. (Added on 2026-11-11 in the design polish pass, with the larger candidate count of Requirement 9 criterion 2.)
 
 ### Requirement 12: Expand route request checks
 

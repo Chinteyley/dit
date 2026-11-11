@@ -9,7 +9,7 @@ The feature has these parts:
 1. A pure Session_Reducer in `src/lib/conversation/session.ts` that holds the current text, suggestions, highlight, turns and last spoken sentence.
 2. Storage in `src/lib/conversation/storage.ts` that persists history and settings in localStorage only, with Zod-validated reads.
 3. A Session_Hook in `src/hooks/useMorseSession.ts` that connects the Input_Arbiter, the Engine, the Session_Reducer, the expansion Client, speech output and the alarm handler.
-4. React components in `src/components/`: Keying_Surface, Symbol_Stream, Suggestion_List, Partner_Display, History_View, Listen_Toggle, Partner_Line_Form and Settings_Panel.
+4. React components in `src/components/`: Keying_Surface, Symbol_Stream, Stream_Band, Suggestion_List, Partner_Display, History_View, Listen_Toggle, Partner_Line_Form and Settings_Panel.
 5. Speech wrappers in `src/lib/speech/` for Web Speech synthesis and recognition, behind interfaces so tests use fakes.
 
 This spec depends on, and does not restate, three sibling specs:
@@ -23,6 +23,8 @@ A fourth sibling spec, `onboarding-and-safety`, owns first-run onboarding and ca
 Out of scope: anything the brief lists as out of scope, onboarding, the Command_Legend content, the cheat sheet, the alarm card and chime, Morse decoding, input sources and expansion logic.
 
 Sources of truth: `docs/BRIEF.md` and `.kiro/steering/` (`product.md`, `accessibility.md`, `tech.md`, `structure.md`).
+
+Requirements 24 to 28 come from a design polish pass on 2026-11-11, after a review of the main screen. They compose the screen around one Composer_Panel that is the Keying_Surface, show each press with a small Press_Indicator instead of a full-surface fill, give the live Morse tape the stage, turn the suggestions into numbered cards with one unmistakable highlighted card, and group the partner tools in a quiet Partner_Zone. Criteria 10.5, 10.6, 14.8, 14.9 and 23.5 were changed in place for this pass, and each change says so. Behaviour does not change: roles, accessible names, the Live_Region, focus return, press routing and expansion stay as they are.
 
 ## Glossary
 
@@ -57,14 +59,25 @@ Sources of truth: `docs/BRIEF.md` and `.kiro/steering/` (`product.md`, `accessib
 - **Alarm_Handler**: The interface provided by the `onboarding-and-safety` spec that starts the SOS alarm, reports whether the alarm is active, and receives Press_Events while the alarm is active.
 - **Unknown_Pattern_Handler**: The interface provided by the `onboarding-and-safety` spec that receives `unknown` patterns.
 - **Command_Legend**: The always-visible compact list of command codes, owned by the `onboarding-and-safety` spec.
-- **Keying_Surface**: The large on-screen element that accepts pointer presses and holds keyboard focus for keying.
+- **Keying_Surface**: The large on-screen element that accepts pointer presses and holds keyboard focus for keying. On the main screen it fills the Composer_Panel, so a press anywhere on the panel keys Morse.
+- **Composer_Panel**: The stage of the main screen: one panel that is the Keying_Surface, with the Partner_Display and the Stream_Band drawn on it in a layer that lets presses through to the Keying_Surface.
+- **Armed_Edge**: The solid near-white boundary, at least 2 CSS pixels thick, that the Keying_Surface shows as its focus indicator.
 - **Symbol_Stream**: The live visual display of Current_Pattern as dot and dash shapes.
+- **Letter_Trail**: The row that draws the last characters of Current_Text (at most 24) as Morse tape, each character as its group of dot and dash shapes with the character beneath it. It is hidden from assistive technology.
+- **Stream_Band**: The row on the Composer_Panel that draws the Letter_Trail, the Symbol_Stream and the Press_Indicator, in that order, with one shared Stream_Unit.
+- **Stream_Unit**: The length u that sizes every shape and gap of the Stream_Band: a dot is u across, a dash is 3.25u long, and shapes within a group are 1u apart. The base unit is the smaller of 1.5rem and the Stream_Band width divided by 28, and it fixes the Stream_Band height. The drawn unit is the smaller of the base unit and (W − 1rem) / span, where W is the Stream_Band width and the span is the length of Current_Pattern in units plus 2.
+- **Press_Indicator**: The circle at the head of the Stream_Band, where the next symbol of Current_Pattern will appear, that shows whether a press is held: an outlined ring while idle, and an accent ring around a smaller accent disc while pressed. It is hidden from assistive technology.
 - **Suggestion_List**: The UI list showing Suggestions, the Highlight and the Suggestion_Source label.
+- **Suggestion_Card**: One suggestion in the Suggestion_List, drawn as a card that holds its Ordinal, its suggestion button and, when highlighted, the "Will be spoken" marker.
+- **Ordinal**: The visible number 1, 2 or 3 on a Suggestion_Card, matching its position in Suggestions. It is hidden from assistive technology.
+- **Empty_Slot**: A quiet place in the Suggestion_List, one for each of the 3 places that no Suggestion_Card fills, showing the Ordinal of that place. It holds no control and is hidden from assistive technology.
+- **Selected_Fill**: The dark accent-tinted fill (`--color-selected`) of the highlighted Suggestion_Card.
 - **Partner_Display**: The large high-contrast readout of Current_Text and Last_Spoken.
 - **History_View**: The UI list of Turns shown as speaker and partner bubbles.
 - **Listen_Toggle**: The partner control that turns Speech_Input on or off.
 - **Partner_Line_Form**: The partner text field and submit button for typing a partner line.
 - **Settings_Panel**: The partner dialog for voice, rate, Listen, flip, clearing history, starting speed and adaptation.
+- **Partner_Zone**: The quiet panel on the main screen that holds the History_View and the "Partner controls" section, which holds the Partner_Line_Form, the Listen_Toggle and the "Settings" button.
 - **Live_Region**: The single polite `aria-live` region that announces committed characters and new Suggestions.
 - **Speech_Output**: The wrapper in `src/lib/speech/` around Web Speech synthesis that speaks sentences and lists voices.
 - **Speech_Input**: The wrapper in `src/lib/speech/` around Web Speech recognition that delivers interim and final transcripts.
@@ -75,6 +88,8 @@ Sources of truth: `docs/BRIEF.md` and `.kiro/steering/` (`product.md`, `accessib
 - **Starting_WPM**: A number from 2 to 20 inclusive, default 6, passed to the Engine configuration.
 - **Partner_Control**: Any button, toggle, link, select, slider or text field the partner uses, other than the Keying_Surface.
 - **Reduced_Motion**: The state in which the `prefers-reduced-motion: reduce` media query matches.
+- **Wide_Layout**: The main screen arrangement used while the viewport is at least 64rem wide (1024 CSS pixels at the default font size) and in landscape orientation.
+- **One_Column_Layout**: The main screen arrangement used at every viewport where Wide_Layout does not apply, including tablets in portrait, phones and 200% browser zoom.
 
 ## Requirements
 
@@ -226,8 +241,8 @@ Sources of truth: `docs/BRIEF.md` and `.kiro/steering/` (`product.md`, `accessib
 2. THE Keying_Surface SHALL be focusable, expose role `button`, the accessible name "Keying surface" and an accessible description stating that a press keys Morse, and SHALL hold keyboard focus when the main screen first appears.
 3. WHEN the Input_Arbiter emits a `down` Press_Event from any Press_Source, THE Keying_Surface SHALL show the pressed state by the next animation frame, and SHALL keep showing it until the Input_Arbiter emits the matching `up` Press_Event. This applies whether the alarm is active or inactive.
 4. WHEN the Input_Arbiter emits an `up` Press_Event, THE Keying_Surface SHALL show the idle state by the next animation frame.
-5. THE Keying_Surface SHALL show a pressed state that differs from the idle state in two ways: a fill whose contrast ratio against the idle fill is at least 3:1, and a border at least 3 CSS pixels thick whose contrast ratio against the adjacent background is at least 3:1. The pressed state therefore does not rely on color alone.
-6. WHILE the Keying_Surface has focus, THE Keying_Surface SHALL show a focus indicator at least 2 CSS pixels thick with a contrast ratio of at least 3:1 against adjacent colors. The indicator SHALL stay visible in both the idle and pressed states and SHALL look different from the pressed-state border, so that a focused idle surface does not look pressed.
+5. THE Keying_Surface SHALL show the idle and pressed states with the Press_Indicator, as Requirement 25 states: an outlined ring with an unfilled centre while idle, and an accent ring around a disc filled with the accent colour while pressed, so that the two states differ in fill and form and not only in colour. THE Keying_Surface SHALL keep the same fill, boundary and size in both states. (Changed on 2026-11-11 in the design polish pass: the pressed state filled the whole surface with the accent colour and thickened its border, so the largest area on screen changed brightness on every press. Changed again on 2026-11-11 in the visual iteration of task 17.7: the pressed state was a plain accent disc, which read as one more keyed dot.)
+6. WHILE the Keying_Surface has focus, THE Keying_Surface SHALL show the Armed_Edge as its focus indicator: a solid boundary at least 2 CSS pixels thick in the near-white text colour, with a contrast ratio of at least 3:1 against the page background and against the Composer_Panel fill. The Armed_Edge SHALL look the same in the idle and pressed states and SHALL look different from both Press_Indicator states, so that focus never looks like a press. Partner_Controls keep the focus indicator of Requirement 22 criterion 6. (Changed on 2026-11-11 in the design polish pass: the Keying_Surface used the dashed amber ring that every control uses, and that ring had to differ from a pressed-state border that no longer exists.)
 7. IF the speaker holds a pointer down on the Keying_Surface for any duration, including a long hold or a small movement within the surface, THEN THE Keying_Surface SHALL cause no text selection, no context menu, no page scroll and no zoom.
 8. WHILE Reduced_Motion is active, THE Keying_Surface SHALL switch between the idle and pressed states with no movement, scaling or pulsing.
 
@@ -291,8 +306,8 @@ Sources of truth: `docs/BRIEF.md` and `.kiro/steering/` (`product.md`, `accessib
 5. WHERE the flip setting is on, THE Partner_Display SHALL rotate its content 180 degrees with a CSS transform and keep the DOM order of its content unchanged.
 6. WHERE the flip setting is off, THE Partner_Display SHALL render its content with 0 degrees of rotation.
 7. WHEN the partner activates the flip toggle, THE Settings_Panel SHALL switch the flip setting between on and off, and THE Storage SHALL write the new flip setting to the Settings_Record.
-8. WHILE Current_Text is empty, THE Partner_Display SHALL show placeholder text with a contrast ratio of at least 4.5:1 in place of Current_Text.
-9. WHILE Last_Spoken is none, THE Partner_Display SHALL show placeholder text with a contrast ratio of at least 4.5:1 in place of Last_Spoken.
+8. WHILE Current_Text is empty, THE Partner_Display SHALL show placeholder text in place of Current_Text in the muted colour, with a contrast ratio of at least 4.5:1 and a font size no larger than 1.25rem, and SHALL keep the Current_Text area at least one line of Current_Text high, so that the first character moves nothing below it. (Changed on 2026-11-11 in the design polish pass: the placeholder was set at the Current_Text size, so the largest element on an idle screen was a placeholder.)
+9. WHILE Last_Spoken is none, THE Partner_Display SHALL show placeholder text in place of Last_Spoken in the muted colour, with a contrast ratio of at least 4.5:1 and a font size no larger than 1.25rem, and SHALL keep the Last_Spoken area at least one line of Last_Spoken high, so that the first spoken sentence moves nothing below it. (Changed on 2026-11-11 in the design polish pass, for the same reason as criterion 8.)
 10. WHEN Current_Text or Last_Spoken changes in Session_State, THE Partner_Display SHALL show the new value within 100 milliseconds.
 11. WHILE Current_Text or Last_Spoken holds up to 500 characters, THE Partner_Display SHALL wrap the text onto multiple lines so that every character is visible without truncation or horizontal scrolling at viewport widths of 320 CSS pixels or more.
 12. WHILE Reduced_Motion is active, THE Partner_Display SHALL apply a change of the flip setting in a single step, with no rotation animation or transition.
@@ -449,16 +464,110 @@ Sources of truth: `docs/BRIEF.md` and `.kiro/steering/` (`product.md`, `accessib
    - while a Pending_Press is reported, no timestamp passed to the Engine's `tick(t)` is greater than that Pending_Press's earliest Raw_Down timestamp;
    - a `sos` command reaches the Alarm_Handler while a Client request is pending and unresolved;
    - while the Alarm_Handler reports the alarm as active, every Press_Event from the Input_Arbiter reaches the Alarm_Handler and none reaches the Engine.
-5. THE component tests SHALL use Testing Library in the jsdom environment and SHALL locate elements only by role and accessible name. They SHALL assert each of the following:
+5. THE component tests SHALL use Testing Library in the jsdom environment and SHALL locate elements only by role and accessible name. They SHALL assert each of the following (changed on 2026-11-11 in the design polish pass: the last five items were added; the visual iteration of task 17.7 extended the last two):
    - the Keying_Surface exposes its accessible name;
    - each Suggestion is rendered as a button, and exactly one element carries the `aria-current` marker, matching the Highlight;
    - the "AI" label appears when Suggestion_Source is `'ai'` and the "On-device" label appears when Suggestion_Source is `'on-device'`;
    - the Listen_Toggle is exposed as a switch, and the unsupported message appears when Speech_Input is unavailable;
    - a dialog named "Settings" opens, and pressing Escape closes it;
    - after the Settings dialog closes, keyboard focus is on the Keying_Surface;
-   - the rendered page contains exactly one Live_Region with `aria-live="polite"`.
+   - the rendered page contains exactly one Live_Region with `aria-live="polite"`;
+   - the element with role `button` and the name "Keying surface" does not contain the Partner_Display or the Stream_Band, and both are present on the main screen (Requirement 24 criterion 5);
+   - the Partner_Display group, the "Suggestions" list, the "Commands" region and the "Partner controls" section follow each other in the DOM in the order of Requirement 24 criterion 1, and the "Conversation history" list comes before the "Partner controls" section (Requirement 28 criterion 4);
+   - the Partner_Display headings appear in the order "Last said", "Typing" (Requirement 24 criterion 6);
+   - the Press_Indicator is hidden from assistive technology, its state follows the pressed state, a held press adds a centre disc inside its ring, and the Stream_Band span follows Current_Pattern (Requirements 25 and 26);
+   - each Suggestion_Card shows its Ordinal hidden from assistive technology, each suggestion button's accessible name and text content equal its suggestion, and exactly one "Will be spoken" marker shows, on the highlighted Suggestion_Card; each place that no Suggestion_Card fills shows an Empty_Slot with the next Ordinal, hidden from assistive technology and outside the "Suggestions" list (Requirement 27).
 6. THE Speech_Output and Speech_Input tests SHALL use fakes for the Web Speech synthesis and recognition APIs and SHALL assert each of the following:
    - each speak request cancels any in-progress utterance before the new utterance starts;
    - the no-voices message appears when the voice list is empty;
    - the Session_Hook discards, and does not dispatch, any final transcript received while Speech_Output is speaking.
 7. THE test suite SHALL complete in a single non-watch run with zero failing tests, without network access, and without calling the real Web Speech APIs.
+
+### Requirement 24: Composed main screen
+
+**User Story:** As a speaker, a partner or someone watching, I want one composed screen with a clear order of attention, so that the sentence, the live Morse and the suggestions read first and the partner tools stay out of the way.
+
+Added on 2026-11-11 in the design polish pass.
+
+#### Acceptance Criteria
+
+1. THE main screen SHALL place, after the `h1` and the status messages, the Composer_Panel, the Suggestion_List, the "Commands" region that holds the Command_Legend, and the Partner_Zone, in this order in the DOM.
+2. WHILE Wide_Layout applies, THE main screen SHALL show two columns: a primary column with the `h1`, the status messages, the Composer_Panel and then the Suggestion_List, and a secondary column at most 28rem wide with the "Commands" region at its top and the Partner_Zone below it.
+3. WHILE Wide_Layout applies at a viewport of 1280 by 800 or 1024 by 768 CSS pixels at 100% browser zoom, THE main screen SHALL fit in the viewport with no page scroll while three Suggestions that each fit on one line are shown and Current_Text takes up to two lines.
+4. WHILE One_Column_Layout applies, THE main screen SHALL show one column with the regions of criterion 1 from top to bottom in the same order.
+5. THE Keying_Surface SHALL cover the whole Composer_Panel, and THE Partner_Display and the Stream_Band SHALL be drawn on top of it as siblings of the element with role `button`, not as its descendants, so that assistive technology reaches their headings and text and a pointer press anywhere on the Composer_Panel, including on that text, lands on the Keying_Surface with no text selection (Requirement 10 criterion 7).
+6. THE Partner_Display SHALL place the Last_Spoken area above the Current_Text area in both DOM order and visual order, and THE Stream_Band SHALL follow the Current_Text area directly, with no other content between them.
+7. THE main screen SHALL render Current_Text at a larger font size than Last_Spoken, and Last_Spoken at a font size at least as large as the Suggestion_Card text, so that the sentence leads, the suggestions follow and the partner tools (Requirement 28 criterion 3) come last.
+8. WHEN the first character is appended to an empty Current_Text, Current_Pattern changes, or Last_Spoken changes from none to a sentence that fits on one line, THE main screen SHALL keep the Stream_Band, the Suggestion_List and every region after them at the same size and position (Requirement 11 criterion 3; Requirement 14 criteria 8 and 9), apart from the "Conversation history" list, which shows the Turn that the same speak action adds (Requirement 15 criterion 1) and so, in One_Column_Layout, grows and moves the "Partner controls" section below it. (Changed on 2026-11-11 in the headless check of task 17.7: in one column the new Turn of the first spoken sentence made the history list taller, as Requirement 15 requires, while nothing above the list moved.)
+9. THE Suggestion_List SHALL keep at least the height of its label row and three one-line Suggestion_Cards whether it shows 0, 1, 2 or 3 Suggestion_Cards, so that the Composer_Panel and every region after the Suggestion_List keep their size and position when Suggestions arrive or clear.
+10. WHILE the viewport is 1280 by 800, 820 by 1180 or 393 by 852 CSS pixels at 100% browser zoom and the page is scrolled to the top, THE main screen SHALL show no horizontal scroll and SHALL show the whole Composer_Panel inside the viewport.
+11. WHILE the viewport is 768 by 1024 or 1024 by 768 CSS pixels at 100% browser zoom, THE main screen SHALL show the whole Command_Legend, including the "All codes" button, and the whole Keying_Surface inside the viewport without scrolling while three one-line Suggestions are shown (Requirement 22 criterion 7; `onboarding-and-safety` Requirement 8 criteria 6 and 8).
+
+### Requirement 25: Calm press feedback and the Armed_Edge
+
+**User Story:** As a speaker who looks at the screen all day, I want each press shown by a small, steady mark at the head of the Morse tape, and a calm edge that shows the keying area is ready, so that keying stays restful, is safe for people with photosensitivity and keeps the live stream as the focus.
+
+Added on 2026-11-11 in the design polish pass.
+
+#### Acceptance Criteria
+
+1. WHILE no press is held, THE Press_Indicator SHALL be a ring at least 2 CSS pixels thick in the border colour with an unfilled centre, with a contrast ratio of at least 3:1 against the Composer_Panel fill.
+2. WHILE a press is held, from a `down` Press_Event until its matching `up` Press_Event, THE Press_Indicator SHALL be a ring at least 2 CSS pixels thick in the accent colour around a disc filled with the accent colour, with the Composer_Panel fill showing between them, each with a contrast ratio of at least 3:1 against the Composer_Panel fill, so that a held press never looks like a keyed dot. (Changed on 2026-11-11 in the visual iteration of task 17.7: a plain accent disc one dot across, right after the accent newest symbol, read in the screenshots as one more keyed dot.)
+3. THE Press_Indicator SHALL be a circle whose diameter is the larger of 1rem and the Stream_Unit, so that it is at least as wide as a dot of the Stream_Band, and SHALL be hidden from assistive technology.
+4. WHEN the pressed state changes, THE Press_Indicator SHALL show the new state by the next animation frame (Requirement 10 criteria 3 and 4) in a single step, with no transition, animation, scaling or fading, whether or not Reduced_Motion is active.
+5. WHEN the pressed state changes, THE main screen SHALL change the appearance of no element other than the Press_Indicator because of that change, and THE Keying_Surface SHALL keep its fill, boundary, size and position, so that no area larger than the Press_Indicator changes brightness with each press. Symbols that the Engine adds to Current_Pattern follow Requirement 11.
+6. WHILE the Keying_Surface does not have focus, THE Keying_Surface SHALL show a boundary at least 1 CSS pixel thick in the border colour, with a contrast ratio of at least 3:1 against the page background and against the Composer_Panel fill (Requirement 22 criterion 3).
+7. WHEN the Keying_Surface gains or loses focus, THE Keying_Surface SHALL switch between the boundary of criterion 6 and the Armed_Edge (Requirement 10 criterion 6) without changing its own size or position or the position of anything drawn on it, and THE Armed_Edge colour SHALL have a contrast ratio of at least 3:1 against the border colour.
+
+### Requirement 26: Stream on stage
+
+**User Story:** As a partner, or anyone watching, I want the live Morse tape large and rhythmic directly under the sentence, with each letter forming under its dots and dashes, so that the app's signature is what the eye follows.
+
+Added on 2026-11-11 in the design polish pass.
+
+#### Acceptance Criteria
+
+1. THE Stream_Band SHALL draw, from left to right in one row: the Letter_Trail; a gap of 3 Stream_Units after the Letter_Trail when it shows at least one group; the Symbol_Stream; a gap of 1 Stream_Unit when Current_Pattern is not empty; and the Press_Indicator, so that the Press_Indicator marks the place where the next symbol of Current_Pattern will appear.
+2. THE Stream_Band SHALL compute a base unit equal to the smaller of 1.5rem and its own width divided by 28, and SHALL keep its height equal to one glyph row of the base unit, a gap of 0.75 base units and one letter row, whatever Current_Text, Current_Pattern and the pressed state hold (Requirement 11 criterion 3).
+3. THE Stream_Band SHALL draw its shapes and gaps with a Stream_Unit equal to the smaller of the base unit and (W − 1rem) / (P + 2), where W is the Stream_Band width and P is the length of Current_Pattern in units: 1 per dot, 3.25 per dash and 1 per gap between two symbols, or 0 when Current_Pattern is empty. P + 2 is the span: it covers the pattern, the 1-unit gap and one unit of the Press_Indicator, and the 1rem covers the rest of the Press_Indicator, which is never wider than 1rem plus one unit (Requirement 25 criterion 3). Every symbol and the Press_Indicator therefore stay inside the Stream_Band (Requirement 11 criterion 4), and wherever the Stream_Band is at least 12.5rem wide, every character code and command code of the `morse-engine` spec draws at the base unit, so only a longer pattern shrinks the band.
+4. THE Stream_Band SHALL draw the Letter_Trail shapes and letters in the muted colour, every symbol of Current_Pattern except the newest in the near-white text colour, and the newest symbol in the accent colour, with a contrast ratio against the Composer_Panel fill of at least 3:1 for every shape and at least 4.5:1 for the Letter_Trail letters.
+5. WHILE the Letter_Trail does not fit in the room that the Symbol_Stream and the Press_Indicator leave, THE Stream_Band SHALL clip the oldest Letter_Trail groups at its left edge and SHALL NOT shrink, wrap or clip the Symbol_Stream or the Press_Indicator. On the Composer_Panel the clip edge SHALL lie in the panel padding to the left of the Stream_Band, and the clipped groups SHALL fade out across that padding, so that no group ends at a hard edge and a group that starts at the Stream_Band's left edge is drawn in full. (Changed on 2026-11-11 in the visual iteration of task 17.7: the clip at the band's own edge left half shapes and half letters with a flat cut.)
+6. THE Stream_Band SHALL have no fill or border of its own, so that it is drawn on the Composer_Panel fill.
+7. WHILE Reduced_Motion is active, THE Letter_Trail SHALL show each new group at its final position, size and opacity in the first frame it appears, as Requirement 11 criterion 5 states for the symbols of the Symbol_Stream.
+
+### Requirement 27: Suggestion_Cards
+
+**User Story:** As a partner across the bed, and as a speaker who moves the highlight with `..--`, I want the suggestions as large numbered cards with one unmistakable highlighted card, so that we both know which sentence the speak command will say.
+
+Added on 2026-11-11 in the design polish pass.
+
+#### Acceptance Criteria
+
+1. THE Suggestion_List SHALL present Suggestions as an ordered list named "Suggestions", with one Suggestion_Card per suggestion in Suggestions order.
+2. THE Suggestion_List SHALL show each Suggestion_Card's Ordinal (1 for index 0, 2 for index 1 and 3 for index 2) as visible text that is hidden from assistive technology and placed outside the suggestion button, so that the button's accessible name and text content stay exactly the suggestion text (Requirement 13 criterion 1).
+3. WHEN a pointer press lands anywhere on a Suggestion_Card, including on its Ordinal or its marker, THE Suggestion_List SHALL treat it as a press on that card's suggestion button (Requirement 13 criterion 7).
+4. THE Suggestion_List SHALL make every Suggestion_Card at least 44 CSS pixels high and as wide as the Suggestion_List.
+5. WHILE Highlight is an index, THE Suggestion_List SHALL draw the highlighted Suggestion_Card with all of the following: the Selected_Fill, an outline at least 3 CSS pixels thick in the accent colour, its Ordinal on a disc filled with the accent colour, and the visible text "Will be spoken" outside the suggestion button, with `aria-current="true"` on that button; and SHALL draw no other Suggestion_Card with any of them (Requirement 13 criteria 2 and 3).
+6. THE Suggestion_List SHALL render the suggestion text in the near-white text colour at a font size of at least 1.5rem at viewport widths of 768 CSS pixels or more and at least 1.25rem below 768 CSS pixels, with a contrast ratio of at least 7:1 against both the Suggestion_Card fill and the Selected_Fill.
+7. WHILE a suggestion button has keyboard focus, THE Suggestion_List SHALL draw a focus indicator around its whole Suggestion_Card, at least 2 CSS pixels thick and with a contrast ratio of at least 3:1 against the adjacent colours (Requirement 22 criteria 3 and 6).
+8. WHEN a new non-empty Suggestions list replaces the shown one, THE Suggestion_List SHALL show the new Suggestion_Cards either in a single step or with a fade-in that changes only opacity, starts in the first frame and lasts at most 150 milliseconds.
+9. WHILE Reduced_Motion is active, WHEN a new non-empty Suggestions list appears, THE Suggestion_List SHALL show its Suggestion_Cards in their final state in the first frame.
+10. WHEN Highlight changes, THE Suggestion_List SHALL move the marks of criterion 5 to the newly highlighted Suggestion_Card, or remove them when Highlight becomes none, in a single step with no transition or animation.
+11. WHILE Suggestions is non-empty, THE Suggestion_List SHALL show the Suggestion_Source label of Requirement 13 criterion 5 in a row above the Suggestion_Cards.
+12. WHILE Suggestions holds fewer than 3 sentences, THE Suggestion_List SHALL show an Empty_Slot after the Suggestion_Cards for each place they leave, numbered with the Ordinal of that place, as high as a one-line Suggestion_Card and set apart by the panel fill with no border, outside the "Suggestions" list and hidden from assistive technology, so that the reserved area of Requirement 24 criterion 9 reads as three places waiting for sentences. An Empty_Slot SHALL hold no control and no text other than its Ordinal, and SHALL draw its Ordinal at a contrast ratio of at least 4.5:1 against its fill. (Added on 2026-11-11 in the visual iteration of task 17.7: with no suggestions, the reserve showed as an empty dark area under the hint.)
+
+### Requirement 28: Partner_Zone
+
+**User Story:** As a partner, I want the conversation history, my typed line, Listen and Settings grouped in one quiet place beside or below the speaker's panel, so that I find them quickly and they never compete with the speaker's sentence.
+
+Added on 2026-11-11 in the design polish pass.
+
+#### Acceptance Criteria
+
+1. THE main screen SHALL hold the History_View and the "Partner controls" section in one Partner_Zone panel that is set apart from the page by its fill and has no border.
+2. THE main screen SHALL draw the "Commands" region as a panel with the same fill and no border, holding the Command_Legend with its "All codes" button (`onboarding-and-safety` Requirement 8 criterion 8).
+3. THE Partner_Zone and the "Commands" region SHALL render no text at a font size larger than the Suggestion_Card text, and no body text smaller than 18 CSS pixels (Requirement 22 criterion 5).
+4. THE Partner_Zone SHALL place the History_View before the "Partner controls" section in both DOM order and visual order, in every layout.
+5. WHILE Wide_Layout applies, THE Partner_Zone SHALL fill the secondary column below the "Commands" region, SHALL scroll the "Conversation history" list inside the panel when the Turns do not fit, and SHALL keep the "Partner controls" section at the bottom of the panel inside the viewport without page scroll.
+6. WHILE One_Column_Layout applies, THE Partner_Zone SHALL follow the "Commands" region and SHALL limit the "Conversation history" list to a maximum height, beyond which the list scrolls inside itself.
+7. THE Partner_Zone SHALL keep every accessible name and role that Requirements 15, 18, 19 and 20 give its contents: the list "Conversation history", the switch "Listen", the text field "Your line", and the buttons "Add line" and "Settings", inside a section named "Partner controls", each control with a pointer target of at least 44 by 44 CSS pixels (Requirement 22 criterion 6).

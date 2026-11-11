@@ -28,7 +28,6 @@ import { useInputSources } from '@/hooks/useInputSources';
 import { useMorseSession, type SessionOverrides } from '@/hooks/useMorseSession';
 import { HistoryView } from './HistoryView';
 import { KeyingSurface } from './KeyingSurface';
-import { LetterTrail } from './LetterTrail';
 import { ListenToggle } from './ListenToggle';
 import { LiveRegion } from './LiveRegion';
 import { PartnerDisplay } from './PartnerDisplay';
@@ -36,8 +35,8 @@ import { PartnerLineForm } from './PartnerLineForm';
 import { SessionApiContext, type SessionApiContextValue } from './session-api-context';
 import { SettingsPanel } from './SettingsPanel';
 import { StatusMessages } from './StatusMessages';
+import { StreamBand } from './StreamBand';
 import { SuggestionList } from './SuggestionList';
-import { SymbolStream } from './SymbolStream';
 
 export interface CloseSettingsOptions {
   /** False closes the panel without moving focus (the caller moves it, for example into onboarding). */
@@ -53,7 +52,7 @@ export interface DitAppProps {
   /** onboarding-and-safety plug-ins; each defaults to an inert stand-in. */
   readonly alarm?: AlarmHandler;
   readonly unknownPattern?: UnknownPatternHandler;
-  /** Rendered inside <aside aria-label="Commands">, a box at least 7rem high (Req 22.7). */
+  /** Rendered inside <aside aria-label="Commands">, a panel at least 7rem high (Req 22.7, 28.2). */
   readonly legend?: ReactNode;
   /** Rendered last, after everything else (alarm card, cheat sheet). */
   readonly overlay?: ReactNode;
@@ -167,11 +166,13 @@ function createSourceHub(): SourceHub {
 }
 
 /**
- * The client root (design "Components", task 13): wires the input layer, the optional
+ * The client root (design "Components", tasks 13 and 17.6): wires the input layer, the optional
  * Press_Router and the session controller together, provides SessionApiContext, and lays out the
- * screen. One column below 1024 px or in portrait; at 1024 px and wider in landscape, a 3:2 grid
- * with the partner display, stream, suggestions and Keying_Surface on the left and the command
- * legend, history and partner controls on the right (design "Screen layout").
+ * composed screen (design "Screen layout", Requirement 24). The DOM order is the reading order:
+ * the h1, the status messages, the Composer_Panel (the Keying_Surface with the Partner_Display and
+ * the Stream_Band drawn on it), the Suggestion_Cards, the "Commands" panel and the Partner_Zone.
+ * In Wide_Layout (at least 1024 px and landscape) the speaker column holds the first four and a
+ * quieter rail holds the last two; in every other viewport they stack in one column.
  */
 export function DitApp(props: DitAppProps) {
   const { legend, overlay, extraSettingsActions } = props;
@@ -262,23 +263,20 @@ export function DitApp(props: DitAppProps) {
 
   return (
     <SessionApiContext value={api}>
-      <main className="mx-auto grid min-h-dvh w-full max-w-[120rem] grid-cols-1 gap-x-12 gap-y-6 px-5 py-6 [grid-template-areas:'header'_'primary'_'secondary'] sm:px-8 short:gap-y-4 short:py-4 wide:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] wide:grid-rows-[auto_minmax(0,1fr)] wide:px-12 wide:[grid-template-areas:'header_header'_'primary_secondary']">
-        <div className="[grid-area:header]">
+      {/* Page padding and region gaps follow the design's spacing table, tighter in Wide_Layout on
+          short screens. One column stacks the regions from the top. Wide_Layout stretches its one
+          row to the viewport, so the Composer_Panel takes the height that the suggestions leave. */}
+      <main className="mx-auto grid min-h-dvh w-full max-w-[120rem] grid-cols-1 content-start gap-4 p-4 md:gap-6 md:p-8 wide:grid-cols-[minmax(0,1fr)_clamp(20rem,30vw,27rem)] wide:content-stretch wide:gap-x-10 wide:p-10 wide:short:gap-x-8 wide:short:p-6">
+        <div className="flex min-w-0 flex-col gap-4 md:gap-6 wide:short:gap-4">
           <h1 className="text-2xl font-semibold tracking-tight text-text">
             Dit
             <span aria-hidden="true" className="ml-[0.1em] inline-block size-[0.3em] rounded-full bg-accent" />
           </h1>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-6 [grid-area:primary] short:gap-4">
           <StatusMessages messages={snapshot.messages} onDismiss={controller.dismissMessage} />
-          <PartnerDisplay currentText={session.currentText} lastSpoken={session.lastSpoken} flip={settings.flip} />
-          <div className="morse-scale rounded-3xl bg-surface px-6 py-4">
-            <div className="flex h-[calc(var(--sym-u)*1.75+1.25rem)] items-start">
-              <LetterTrail text={session.currentText} />
-              <SymbolStream pattern={session.currentPattern} />
-            </div>
-          </div>
+          <KeyingSurface id={surfaceId} pressed={snapshot.pressed} ref={surfaceRef}>
+            <PartnerDisplay currentText={session.currentText} lastSpoken={session.lastSpoken} flip={settings.flip} />
+            <StreamBand text={session.currentText} pattern={session.currentPattern} pressed={snapshot.pressed} />
+          </KeyingSurface>
           <SuggestionList
             suggestions={session.suggestions}
             source={session.suggestionSource}
@@ -286,32 +284,40 @@ export function DitApp(props: DitAppProps) {
             currentText={session.currentText}
             onPick={controller.partnerPick}
           />
-          <KeyingSurface id={surfaceId} pressed={snapshot.pressed} ref={surfaceRef} />
         </div>
 
-        {/* Two columns: size-contained, so a long history scrolls inside instead of stretching the
-            page; the inset padding keeps focus rings (3 px + 4 px offset) clear of the scroll clip. */}
-        <div className="flex min-w-0 flex-col gap-8 [grid-area:secondary] wide:-m-2.5 wide:overflow-y-auto wide:p-2.5 wide:[contain:size]">
-          <aside aria-label="Commands" className="min-h-28 shrink-0">
+        {/* The rail in Wide_Layout: size-contained, so a long history scrolls inside instead of
+            stretching the page; the inset padding keeps focus rings (3 px + 4 px offset) clear of
+            the scroll clip. Both panels are set apart by their fill alone (Req 28.1, 28.2). */}
+        <div className="flex min-w-0 flex-col gap-4 md:gap-6 wide:-m-2.5 wide:overflow-y-auto wide:p-2.5 wide:[contain:size] wide:short:gap-4">
+          <aside aria-label="Commands" className="min-h-28 shrink-0 rounded-3xl bg-surface p-4 sm:p-5">
             {legend}
           </aside>
-          <HistoryView turns={session.turns} hydrated={ready} />
-          <section aria-label="Partner controls" className="flex w-full max-w-[min(100%,28rem)] shrink-0 flex-col gap-5">
-            <ListenToggle listen={snapshot.listen} onToggle={controller.setListen} />
-            <PartnerLineForm
-              onSubmit={(text) => {
-                controller.partnerLine(text);
-                return true;
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="min-h-(--size-target) self-start rounded-xl border border-border bg-raised px-5 text-lg font-medium text-text"
-            >
-              Settings
-            </button>
-          </section>
+          {/* The Partner_Zone: the history first, then the controls, in every layout (Req 28.4). The gap
+              is small because the history list keeps 1rem of faded padding at its bottom edge. */}
+          <div className="flex min-h-0 flex-col gap-3 rounded-3xl bg-surface p-4 sm:p-5 wide:flex-1">
+            <HistoryView turns={session.turns} hydrated={ready} />
+            <section aria-label="Partner controls" className="flex w-full max-w-[min(100%,28rem)] shrink-0 flex-col gap-4">
+              <PartnerLineForm
+                onSubmit={(text) => {
+                  controller.partnerLine(text);
+                  return true;
+                }}
+              />
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="flex-1">
+                  <ListenToggle listen={snapshot.listen} onToggle={controller.setListen} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="min-h-(--size-target) shrink-0 rounded-xl border border-border bg-raised px-5 text-lg font-medium text-text"
+                >
+                  Settings
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
       </main>
 

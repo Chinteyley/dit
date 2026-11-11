@@ -1,8 +1,8 @@
 /*
  * Dit design tokens and global styles (conversation-ui design "Design tokens", Requirements 10.5,
- * 10.6, 11.8, 14.2 to 14.4 and 22). Components use the tokens through Tailwind utilities
- * (bg-raised, text-muted, ...), so no component holds a raw colour. src/app/tokens.test.ts checks
- * every pair of the design's contrast table against the colours below.
+ * 10.6, 11.8, 14.2 to 14.4, 22, 25, 26.2, 26.3 and 27.6). Components use the tokens through
+ * Tailwind utilities (bg-raised, text-muted, ...), so no component holds a raw colour.
+ * src/app/tokens.test.ts checks every pair of the design's contrast table against the colours below.
  */
 @import 'tailwindcss' source('..');
 
@@ -10,15 +10,16 @@
   /* Colours, with WCAG relative luminance L. Only these exist: the default palette is cleared. */
   --color-*: initial;
   --color-bg: #0B0D10; /* page background, L = 0.0040 */
-  --color-surface: #161A20; /* panels, stream band, dialog, L = 0.0101 */
-  --color-raised: #222831; /* keying idle fill, buttons, speaker bubble, L = 0.0208 */
+  --color-surface: #161A20; /* Composer_Panel, rail panels, dialog, L = 0.0101 */
+  --color-raised: #222831; /* Suggestion_Cards, buttons, speaker bubble, L = 0.0208 */
   --color-partner: #1A2433; /* partner bubble, L = 0.0172 */
-  --color-text: #F5F7FA; /* body and partner display text, L = 0.9284 */
+  --color-selected: #1A3656; /* Selected_Fill of the highlighted Suggestion_Card, L = 0.0353 */
+  --color-text: #F5F7FA; /* body and partner display text, Armed_Edge, L = 0.9284 */
   --color-muted: #A9B1BC; /* labels, placeholders, hints, letter trail, L = 0.4351 */
-  --color-border: #7A8491; /* control and keying surface boundaries, L = 0.2268 */
-  --color-accent: #7CC4FF; /* highlight ring, keying pressed fill, newest symbol, L = 0.5098 */
+  --color-border: #7A8491; /* control and Keying_Surface boundaries, Press_Indicator ring, L = 0.2268 */
+  --color-accent: #7CC4FF; /* highlight ring, Press_Indicator disc, newest symbol, L = 0.5098 */
   --color-on-accent: #0B0D10; /* text and switch knob on the accent fill */
-  --color-focus: #FFD166; /* focus ring, L = 0.6782 */
+  --color-focus: #FFD166; /* focus ring of every control but the Keying_Surface, L = 0.6782 */
   --color-error: #FF9A8F; /* error and status marker, L = 0.4635 */
   --color-alarm: #5C0A14; /* Alarm_Card background and backdrop, L = 0.0254 (onboarding-and-safety) */
 
@@ -37,17 +38,20 @@
   --text-display--line-height: 1.1;
   --text-last: clamp(1.5rem, 1rem + 2vw, 3rem);
   --text-last--line-height: 1.2;
+  /* Suggestion_Card text (Req 27.6): at least 20 px; the 48rem rule below raises the floor to 24 px. */
+  --text-suggestion: clamp(1.25rem, 0.75rem + 1.5vw, 2rem);
+  --text-suggestion--line-height: 1.25;
   /* "I need help" on the Alarm_Card: at least 48 px at 320 px, up to 144 px (onboarding Req 1.3). */
   --text-alarm-title: clamp(3rem, 2rem + 8vw, 9rem);
   --text-alarm-title--line-height: 1.05;
 
   --size-target: 2.75rem; /* 44 px minimum pointer target (Req 22.6) */
-  --border-pressed: 4px; /* keying pressed border, at least 3 px (Req 10.5) */
-  --ring-width: 3px; /* focus ring, at least 2 px (Req 10.6, 22.6) */
+  --ring-width: 3px; /* focus ring, at least 2 px (Req 22.6); the Armed_Edge is 2 px (Req 10.6) */
   --ring-offset: 4px;
-  --outline-highlight: 3px; /* highlighted suggestion (Req 13.2) */
+  --outline-highlight: 3px; /* highlighted Suggestion_Card ring (Req 13.2, 27.5) */
   --duration-fade: 150ms; /* the longest motion; none at all under reduced motion */
-  --sym-u-max: 1.5rem; /* largest Morse unit: a dot's diameter */
+  --sym-u-max: 1.5rem; /* largest Stream_Unit: a dot's diameter (Req 26.2) */
+  --sym-press-min: 1rem; /* smallest Press_Indicator; the drawn unit reserves it (Req 25.3, 26.3) */
 
   --animate-settle: settle var(--duration-fade) ease-out;
   --animate-fade-in: fade-in var(--duration-fade) ease-out;
@@ -66,9 +70,11 @@
 
 @media (min-width: 48rem) {
   :root {
-    /* At 768 px and wider: Current_Text at least 48 px, Last_Spoken at least 32 px (Req 14.2, 14.3). */
+    /* At 768 px and wider: Current_Text at least 48 px, Last_Spoken at least 32 px (Req 14.2, 14.3)
+       and Suggestion_Card text at least 24 px (Req 27.6). */
     --text-display: clamp(3rem, 1rem + 4vw, 5rem);
     --text-last: clamp(2rem, 1rem + 2vw, 3rem);
+    --text-suggestion: clamp(1.5rem, 0.75rem + 1.5vw, 2rem);
   }
 }
 
@@ -111,8 +117,9 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* One focus indicator for every focusable element, whenever it has focus (Req 10.6, 22.6):
-     amber and dashed, offset outside any border, so a focused idle Keying_Surface never looks pressed. */
+  /* One focus indicator for every focusable element, whenever it has focus (Req 22.6): amber and
+     dashed, offset outside any border. The Keying_Surface replaces it with the Armed_Edge, a solid
+     near-white edge (Req 10.6), so focus there never looks like the Press_Indicator. */
   :focus {
     outline: var(--ring-width) dashed var(--color-focus);
     outline-offset: var(--ring-offset);
@@ -124,11 +131,26 @@
   }
 }
 
-/* The shared Morse unit for the Symbol_Stream and the Letter_Trail. Twelve dashes (3.25u each) and
-   eleven 1u gaps take 50u, so 12 symbols always fit in the 52u-wide container (Req 11.4). */
+/* The Stream_Unit for the Stream_Band (Req 26.2, 26.3). The base unit fits 28 units across, which
+   draws every real code at full size (SOS is 23.75u), and fixes the band height. The drawn unit
+   also fits the span that StreamBand sets in --stream-span (the pattern's units plus 2) after
+   reserving --sym-press-min for the Press_Indicator, so twelve dashes (50u) still fit with the gap
+   and the indicator (Req 11.4). */
 @utility morse-scale {
   container-type: inline-size;
-  --sym-u: min(var(--sym-u-max), calc(100cqi / 52));
+  --sym-u-base: min(var(--sym-u-max), calc(100cqi / 28));
+  --sym-u: min(var(--sym-u-base), calc((100cqi - var(--sym-press-min)) / var(--stream-span, 2)));
+}
+
+/* The Letter_Trail's clip edge (Req 26.5): the trail box reaches across the Composer_Panel padding
+   (--stage-pad, which KeyingSurface sets) and fades out over it, so the oldest groups run off the
+   stage instead of ending at a hard cut. A trail that fits starts at the content edge, outside
+   the fade, so it is never dimmed. Without --stage-pad the utility changes nothing. The mask
+   changes opacity only, and nothing moves. */
+@utility trail-bleed {
+  margin-left: calc(var(--stage-pad, 0px) * -1);
+  padding-left: var(--stage-pad, 0px);
+  mask-image: linear-gradient(to right, transparent, black var(--stage-pad, 0px));
 }
 
 /* Dot: a circle u across. Dash: a pill 3.25u long and u high (Req 11.1). */

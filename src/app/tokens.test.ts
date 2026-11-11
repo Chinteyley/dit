@@ -1,9 +1,10 @@
 /**
- * The design-token contrast check (conversation-ui task 14.2): parses the @theme blocks of
- * globals.css, computes WCAG relative luminance and contrast, and asserts every row of the design's
- * contrast table (design.md "Contrast pairs"), the page background luminance (at most 0.05) and the
- * Partner_Display text luminance (at least 0.85). Requirements 10.5, 10.6, 11.8, 13.8, 14.4, 14.8,
- * 22.1 to 22.3.
+ * The design-token contrast check (conversation-ui tasks 14.2 and 17.1): parses the @theme blocks
+ * of globals.css, computes WCAG relative luminance and contrast, and asserts every row of the
+ * design's contrast table (design.md "Contrast pairs"), the page background luminance (at most
+ * 0.05), the Partner_Display text luminance (at least 0.85), the Suggestion_Card text floors, the
+ * Stream_Unit budget and the Letter_Trail's clip fade. Requirements 10.5, 10.6, 11.8, 13.8, 14.4,
+ * 14.8, 22.1 to 22.3, 25.1, 25.2, 25.6, 25.7, 26.2 to 26.5, 27.5 and 27.6.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -86,20 +87,34 @@ const CONTRAST_TABLE: readonly Row[] = [
     on: [['bg', 5.13], ['surface', 4.6], ['raised', 3.91]],
     needed: 3,
   },
-  { use: 'Keying pressed fill vs idle fill', fg: 'accent', on: [['raised', 7.91]], needed: 3 },
-  { use: 'Keying pressed border (4 px)', fg: 'text', on: [['bg', 18.13]], needed: 3 },
-  { use: 'Keying label on pressed fill', fg: 'on-accent', on: [['accent', 10.37]], needed: 4.5 },
+  { use: 'Press_Indicator idle ring (2 px)', fg: 'border', on: [['surface', 4.6]], needed: 3 },
+  { use: 'Press_Indicator pressed ring and centre disc', fg: 'accent', on: [['surface', 9.31]], needed: 3 },
+  { use: 'Keying_Surface Armed_Edge (2 px, on focus)', fg: 'text', on: [['bg', 18.13], ['surface', 16.27]], needed: 3 },
+  { use: 'Armed_Edge against the unfocused boundary', fg: 'text', on: [['border', 3.53]], needed: 3 },
   {
     use: 'Focus ring (offset 4 px, sits on page or panel)',
     fg: 'focus',
     on: [['bg', 13.49], ['surface', 12.11], ['raised', 10.29]],
     needed: 3,
   },
-  { use: 'Suggestion highlight outline', fg: 'accent', on: [['surface', 9.31], ['raised', 7.91]], needed: 3 },
+  { use: 'Suggestion_Card text', fg: 'text', on: [['raised', 13.82], ['selected', 11.47]], needed: 7 },
+  {
+    use: 'Highlight ring, accent Ordinal disc and "Will be spoken"',
+    fg: 'accent',
+    on: [['selected', 6.56], ['bg', 10.37]],
+    needed: 4.5,
+  },
+  { use: 'Ordinal number on the accent disc', fg: 'on-accent', on: [['accent', 10.37]], needed: 4.5 },
+  { use: 'Ordinal number on the other cards', fg: 'text', on: [['raised', 13.82]], needed: 4.5 },
   { use: 'Symbol shapes', fg: 'text', on: [['surface', 16.27]], needed: 3 },
-  { use: 'Accent text ("Will be spoken") and the newest symbol', fg: 'accent', on: [['bg', 10.37], ['surface', 9.31]], needed: 4.5 },
+  {
+    use: 'Newest symbol and accent marks (typed-text mark, logo dot)',
+    fg: 'accent',
+    on: [['surface', 9.31], ['bg', 10.37]],
+    needed: 3,
+  },
   { use: 'Switch knob on the accent track', fg: 'on-accent', on: [['accent', 10.37]], needed: 3 },
-  { use: 'Destructive button text', fg: 'error', on: [['raised', 7.25]], needed: 4.5 },
+  { use: 'Destructive button text ("Clear history" confirm)', fg: 'error', on: [['raised', 7.25]], needed: 4.5 },
 ];
 
 /** onboarding-and-safety design.md "Contrast pairs" (task 16.2): the Alarm_Card, legend, sheet and setup. */
@@ -122,6 +137,7 @@ describe('design tokens in globals.css', () => {
       '--color-surface',
       '--color-raised',
       '--color-partner',
+      '--color-selected',
       '--color-text',
       '--color-muted',
       '--color-border',
@@ -134,12 +150,14 @@ describe('design tokens in globals.css', () => {
       '--text-base',
       '--text-display',
       '--text-last',
+      '--text-suggestion',
       '--size-target',
-      '--border-pressed',
       '--ring-width',
       '--ring-offset',
       '--outline-highlight',
       '--duration-fade',
+      '--sym-u-max',
+      '--sym-press-min',
     ]) {
       expect(theme, name).toMatch(new RegExp(`${name}\\s*:`));
     }
@@ -148,18 +166,50 @@ describe('design tokens in globals.css', () => {
   it('keeps the sizes the requirements set as minimums', () => {
     expect(theme).toMatch(/--text-base:\s*1\.125rem;/); // 18 px body text (Req 22.5)
     expect(theme).toMatch(/--size-target:\s*2\.75rem;/); // 44 px targets (Req 22.6)
-    expect(theme).toMatch(/--border-pressed:\s*4px;/); // at least 3 px (Req 10.5)
-    expect(theme).toMatch(/--ring-width:\s*3px;/); // at least 2 px (Req 10.6, 22.6)
-    expect(theme).toMatch(/--outline-highlight:\s*3px;/); // at least 3 px (Req 13.2)
+    expect(theme).toMatch(/--ring-width:\s*3px;/); // at least 2 px (Req 22.6)
+    expect(theme).toMatch(/--outline-highlight:\s*3px;/); // at least 3 px (Req 13.2, 27.5)
     // Partner_Display floors: 32 px and 24 px below 768 px; 48 px and 32 px from 768 px (Req 14.2, 14.3).
     expect(theme).toMatch(/--text-display:\s*clamp\(2rem,/);
     expect(theme).toMatch(/--text-last:\s*clamp\(1\.5rem,/);
     expect(css).toMatch(/@media \(min-width: 48rem\)\s*\{\s*:root\s*\{[^}]*--text-display:\s*clamp\(3rem,[^}]*--text-last:\s*clamp\(2rem,/);
   });
 
+  it('sets the Suggestion_Card text floors: 1.25rem, and 1.5rem from 768 px (Req 27.6)', () => {
+    expect(theme).toMatch(/--text-suggestion:\s*clamp\(1\.25rem,\s*0\.75rem \+ 1\.5vw,\s*2rem\);/);
+    expect(theme).toMatch(/--text-suggestion--line-height:\s*1\.25;/);
+    expect(css).toMatch(/@media \(min-width: 48rem\)\s*\{\s*:root\s*\{[^}]*--text-suggestion:\s*clamp\(1\.5rem,\s*0\.75rem \+ 1\.5vw,\s*2rem\);/);
+  });
+
+  it('sizes the Stream_Unit with a 28-unit base and a span that reserves the Press_Indicator (Req 25.3, 26.2, 26.3)', () => {
+    expect(theme).toMatch(/--sym-u-max:\s*1\.5rem;/);
+    expect(theme).toMatch(/--sym-press-min:\s*1rem;/);
+    const morseScale = css.match(/@utility morse-scale\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(morseScale).toMatch(/container-type:\s*inline-size;/);
+    expect(morseScale).toMatch(/--sym-u-base:\s*min\(var\(--sym-u-max\),\s*calc\(100cqi \/ 28\)\);/);
+    expect(morseScale).toMatch(
+      /--sym-u:\s*min\(var\(--sym-u-base\),\s*calc\(\(100cqi - var\(--sym-press-min\)\) \/ var\(--stream-span, 2\)\)\);/,
+    );
+  });
+
+  it('has no pressed border or pressed fill token, because a press changes only the Press_Indicator (Req 10.5, 25.5)', () => {
+    expect(css).not.toMatch(/--border-pressed/);
+  });
+
+  it('fades the Letter_Trail out across the Composer_Panel padding, and changes nothing without it (Req 26.5)', () => {
+    const bleed = css.match(/@utility trail-bleed\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(bleed).toMatch(/margin-left:\s*calc\(var\(--stage-pad, 0px\) \* -1\);/);
+    expect(bleed).toMatch(/padding-left:\s*var\(--stage-pad, 0px\);/);
+    expect(bleed).toMatch(/mask-image:\s*linear-gradient\(to right, transparent, black var\(--stage-pad, 0px\)\);/);
+  });
+
   it('has a dark page and near-white partner text (Req 22.1)', () => {
     expect(luminance(hex('bg'))).toBeLessThanOrEqual(0.05);
     expect(luminance(hex('text'))).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('has a Selected_Fill that reads lighter than the card fill (Req 27.5)', () => {
+    expect(luminance(hex('selected'))).toBeCloseTo(0.0353, 4);
+    expect(luminance(hex('selected'))).toBeGreaterThan(luminance(hex('raised')));
   });
 
   it('has a dark alarm background (onboarding-and-safety Req 1.7)', () => {

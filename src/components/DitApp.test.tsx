@@ -130,4 +130,43 @@ describe('DitApp', () => {
     await nextFrames();
     expect(document.activeElement).toBe(rig.surface());
   });
+
+  it('draws the Partner_Display and the Stream_Band on the Composer_Panel, outside the Keying_Surface (Req 24.5)', () => {
+    const rig = renderDitApp();
+    const display = screen.getByRole('group', { name: 'Partner display' });
+    const indicator = screen.getByRole('img', { name: 'Press indicator', hidden: true });
+    expect(rig.surface().contains(display)).toBe(false);
+    expect(rig.surface().contains(indicator)).toBe(false);
+    expect(within(display).getByRole('heading', { name: 'Typing' })).toBeDefined();
+    expect(document.activeElement).toBe(rig.surface());
+  });
+
+  it('shows the pressed state on the Press_Indicator while a press is held (Req 10.3, 10.4, 25.2)', async () => {
+    const rig = renderDitApp();
+    const state = (): string | undefined => screen.getByRole('img', { name: 'Press indicator', hidden: true }).dataset['state'];
+    expect(state()).toBe('idle');
+    await rig.user.keyboard('[Space>]');
+    expect(state()).toBe('pressed');
+    await rig.user.keyboard('[/Space]');
+    expect(state()).toBe('idle');
+  });
+
+  it('puts the regions in reading order, with the history before the partner controls (Req 24.1, 28.4)', () => {
+    renderDitApp({ legend: <p>AR speak</p> });
+    const regions = [
+      screen.getByRole('group', { name: 'Partner display' }),
+      screen.getByRole('list', { name: 'Suggestions' }),
+      screen.getByRole('complementary', { name: 'Commands' }),
+      screen.getByRole('region', { name: 'Partner controls' }),
+    ];
+    regions.slice(1).forEach((region, index) => {
+      const before = regions[index] as HTMLElement;
+      expect(before.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING, region.tagName).toBeTruthy();
+      expect(before.contains(region)).toBe(false);
+    });
+    const history = screen.getByRole('list', { name: 'Conversation history' });
+    const controls = screen.getByRole('region', { name: 'Partner controls' });
+    expect(history.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(controls.contains(history)).toBe(false);
+  });
 });

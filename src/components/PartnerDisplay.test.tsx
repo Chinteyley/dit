@@ -29,17 +29,17 @@ describe('PartnerDisplay', () => {
     expect(screen.queryByText('Nothing said yet')).toBeNull();
   });
 
-  it('rotates 180° when flipped and keeps the heading order (Req 14.5)', () => {
+  it('rotates 180° when flipped and keeps the heading order, Last said first (Req 14.5, 24.6)', () => {
     render(<PartnerDisplay currentText="yes" lastSpoken={null} flip />);
     expect(display().style.transform).toBe('rotate(180deg)');
-    expect(headings()).toStrictEqual(['Typing', 'Last said']);
+    expect(headings()).toStrictEqual(['Last said', 'Typing']);
   });
 
-  it('has no rotation when not flipped (Req 14.6)', () => {
+  it('has no rotation when not flipped, and puts Last said before Typing (Req 14.6, 24.6)', () => {
     const view = render(<PartnerDisplay currentText="yes" lastSpoken={null} flip />);
     view.rerender(<PartnerDisplay currentText="yes" lastSpoken={null} flip={false} />);
     expect(display().style.transform).toBe('');
-    expect(headings()).toStrictEqual(['Typing', 'Last said']);
+    expect(headings()).toStrictEqual(['Last said', 'Typing']);
   });
 
   it('keeps every character of a 500-character text (Req 14.11)', () => {

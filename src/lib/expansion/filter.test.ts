@@ -20,6 +20,37 @@ describe('filterSuggestions', () => {
     expect(filterSuggestions(['Yes', 'yes', 'No', 'Maybe', 'Later'], classify('y'))).toStrictEqual(['Yes', 'No', 'Maybe']);
   });
 
+  it('keeps the first 3 of 5 candidates that pass the initials check, in order', () => {
+    const candidates = [
+      'I would like to go out.',
+      'I want to go outside.',
+      'Please open the window.',
+      'I want to get out.',
+      'I wish to go outdoors.',
+    ];
+    expect(filterSuggestions(candidates, classify('iwtgo'))).toStrictEqual([
+      'I want to go outside.',
+      'I want to get out.',
+      'I wish to go outdoors.',
+    ]);
+  });
+
+  it('ignores a passing 6th candidate when only 2 of the first 5 pass', () => {
+    const candidates = [
+      'I want to go outside.',
+      'I would like to go out.',
+      'Please open the window.',
+      'I want to get out.',
+      'I need the nurse.',
+      'I wish to go outdoors.',
+    ];
+    expect(filterSuggestions(candidates, classify('iwtgo'))).toStrictEqual(['I want to go outside.', 'I want to get out.']);
+  });
+
+  it('counts blank and repeated entries toward the first 5', () => {
+    expect(filterSuggestions(['Yes', ' ', 'yes', '', 'No', 'Maybe'], classify('y'))).toStrictEqual(['Yes', 'No']);
+  });
+
   it('does not check initials for partial or word input', () => {
     expect(filterSuggestions(['Totally different.'], classify('i want wa'))).toStrictEqual(['Totally different.']);
   });

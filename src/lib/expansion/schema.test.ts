@@ -3,6 +3,7 @@ import {
   CONTEXT_MAX_TURNS,
   ExpandRequestSchema,
   ExpandResponseSchema,
+  CANDIDATES_MAX,
   REQUEST_TEXT_MAX,
   SUGGESTIONS_MAX,
   SUGGESTION_TEXT_MAX,
@@ -25,8 +26,8 @@ describe('schema types', () => {
   });
 
   it('exports the limits from the requirements', () => {
-    expect([TURN_TEXT_MAX, REQUEST_TEXT_MAX, CONTEXT_MAX_TURNS, SUGGESTIONS_MAX, SUGGESTION_TEXT_MAX]).toStrictEqual([
-      500, 200, 10, 3, 200,
+    expect([TURN_TEXT_MAX, REQUEST_TEXT_MAX, CONTEXT_MAX_TURNS, SUGGESTIONS_MAX, SUGGESTION_TEXT_MAX, CANDIDATES_MAX]).toStrictEqual([
+      500, 200, 10, 3, 200, 5,
     ]);
   });
 });

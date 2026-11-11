@@ -143,6 +143,39 @@ describe('handleExpand provider outcomes', () => {
     expect(rig.log).toHaveBeenCalledWith({ status: 200, latencyMs: 0 });
   });
 
+  it('answers the first 3 candidates that pass among the first 5 of a 6-candidate reply', async () => {
+    const rig = createRig();
+    const candidates = [
+      'I would like to go out.',
+      'I want to go outside.',
+      'Please open the window.',
+      'I want to get out.',
+      'I wish to go outdoors.',
+      'I will try going outside.',
+    ];
+    rig.fake.autoRespond(() => ({ status: 200, body: providerReply(JSON.stringify({ suggestions: candidates })) }));
+    const parsed = await readResponse(await handleExpand(post(VALID), rig.deps));
+    expect(parsed.status).toBe(200);
+    expect(parsed.body).toStrictEqual({ suggestions: ['I want to go outside.', 'I want to get out.', 'I wish to go outdoors.'] });
+    expect(rig.fake.calls).toHaveLength(1);
+  });
+
+  it('ignores a passing 6th candidate when only 2 of the first 5 pass', async () => {
+    const rig = createRig();
+    const candidates = [
+      'I want to go outside.',
+      'I would like to go out.',
+      'Please open the window.',
+      'I want to get out.',
+      'I need the nurse.',
+      'I wish to go outdoors.',
+    ];
+    rig.fake.autoRespond(() => ({ status: 200, body: providerReply(JSON.stringify({ suggestions: candidates })) }));
+    const parsed = await readResponse(await handleExpand(post(VALID), rig.deps));
+    expect(parsed.status).toBe(200);
+    expect(parsed.body).toStrictEqual({ suggestions: ['I want to go outside.', 'I want to get out.'] });
+  });
+
   it('answers 200 with an empty list when nothing survives the filter', async () => {
     const rig = createRig();
     rig.fake.autoRespond(() => ({ status: 200, body: providerReply('I cannot help with that.') }));

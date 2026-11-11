@@ -8,6 +8,14 @@ export const CONTEXT_MAX_TURNS = 10;
 export const SUGGESTIONS_MAX = 3;
 export const SUGGESTION_TEXT_MAX = 200;
 
+/**
+ * Candidate_Max (Requirements 9.2 and 11.9): the most candidate sentences the route's prompt asks
+ * the model for and the suggestion filter reads. It is larger than SUGGESTIONS_MAX because the
+ * initials check often rejects some candidates; the filter still keeps at most SUGGESTIONS_MAX.
+ * Route only, so the barrel does not export it.
+ */
+export const CANDIDATES_MAX = 5;
+
 /** 1 to 200 UTF-16 code units with at least one character that is not Whitespace. */
 export function isValidSuggestionText(s: string): boolean {
   if (s.length < 1 || s.length > SUGGESTION_TEXT_MAX) return false;

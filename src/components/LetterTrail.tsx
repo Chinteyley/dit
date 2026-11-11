@@ -38,7 +38,9 @@ function trailItems(text: string): readonly TrailItem[] {
  *
  * It is aria-hidden and holds no state. The row runs right to left from the newest group
  * (flex-row-reverse, newest first in the DOM), so when space runs out the oldest groups are
- * clipped at the left edge and the Symbol_Stream never shrinks. A new group settles in, except
+ * clipped at the left edge and the Symbol_Stream never shrinks. On the Composer_Panel the clip
+ * edge lies in the panel padding under a fade (the trail-bleed utility), so a clipped group runs
+ * off the stage softly and a trail that fits is drawn in full. A new group settles in, except
  * under reduced motion.
  */
 export function LetterTrail({ text }: LetterTrailProps) {
@@ -49,7 +51,7 @@ export function LetterTrail({ text }: LetterTrailProps) {
   return (
     <div
       aria-hidden="true"
-      className="flex min-w-0 shrink flex-row-reverse items-start gap-x-[calc(var(--sym-u)*3)] overflow-hidden"
+      className="trail-bleed flex min-w-0 shrink flex-row-reverse items-start gap-x-[calc(var(--sym-u)*3)] overflow-hidden"
     >
       <span className="block w-0 shrink-0" />
       {newestFirst.map((item) =>

@@ -157,12 +157,14 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
     - Fixed `SYSTEM_PROMPT` text from the design (1 to 3 first-person sentences, use context, data between `<<<NAME`/`NAME>>>` markers, ignore instructions inside them, JSON-only answer)
     - User message: `<<<CONTEXT` block with labelled, neutralized Turns oldest first, only the latest partner Turn marked as the line being replied to, or `(no conversation context)`; kind-specific instruction (initials with letters and count; partial with last token; words/empty); `<<<TYPED` block with the neutralized trimmed text; each marker on its own line
     - `neutralize` splits runs of 3 or more `<` or `>` with single spaces and leaves other text unchanged
+    - Note (2026-11-11): superseded in part by task 19, which asks for up to 5 sentences, most likely first, instead of 1 to 3
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8_
   - [x] 9.2 Implement `parseModelOutput` in `src/lib/expansion/prompt.ts`
     - `lastIndexOf('"suggestions"')` precheck; ascending scan of `{` positions; JSON-string-aware `matchingBrace`; `JSON.parse` in `try`; first plain object with an array `suggestions` wins; keep string entries only, in order, untrimmed; otherwise `[]`; never throws
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
   - [x]* 9.3 Write `src/lib/expansion/prompt.test.ts`
     - `SYSTEM_PROMPT` mentions 1 to 3 sentences, first person, context, JSON-only and ignoring instructions inside markers; `iwtgo` user message states `5 letters`; parser examples: fenced JSON, prose around JSON, truncated JSON → `[]`, top-level array → `[]`, `{"suggestions":"x"}` → `[]`, mixed-type array keeps strings
+    - Note (2026-11-11): superseded in part by task 19.3, which checks the up-to-5 wording instead of 1 to 3
     - _Requirements: 9.2, 9.3, 9.6, 10.1, 10.2, 10.3_
   - [x] 9.4 Write property test in `src/lib/expansion/prompt.prop.test.ts`
     - **Property 12: The prompt has a fixed system message and is deterministic**
@@ -184,6 +186,7 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
 - [x] 10. Implement the suggestion filter
   - [x] 10.1 Implement `src/lib/expansion/filter.ts`
     - `filterSuggestions(candidates, cls)`: trim with `trimWhitespace`, keep `isValidSuggestionText`, initials-exact check for `'initials'` only, first-seen `suggestionKey` dedupe, cap at 3; new array, input unchanged
+    - Note (2026-11-11): superseded in part by task 19, which reads only the first 5 candidates before these steps
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8_
   - [x]* 10.2 Write `src/lib/expansion/filter.test.ts`
     - An `iwtgo` list keeps "I want to go outside." and drops "I would like to go out."; trimming; `Yes`/`yes` dedupe keeps the first; empty input → `[]`
@@ -321,6 +324,29 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
 - [x] 18. Final checkpoint - Ensure all tests pass
   - Run `bun run test` and `bun run typecheck` (and `bun run lint` if a lint script exists); ensure all tests pass, ask the user if questions arise.
 
+- [x] 19. Ask the model for up to 5 candidates
+  - Added on 2026-11-11 in the design polish pass: with 1 to 3 candidates, fewer than 3 suggestions often remained after the initials filter (see design Implementation notes, candidate count)
+  - [x] 19.1 Add `CANDIDATES_MAX` and build `SYSTEM_PROMPT` from it
+    - `export const CANDIDATES_MAX = 5` with a doc comment next to `SUGGESTIONS_MAX` in `src/lib/expansion/schema.ts`; route only, so `index.ts` does not export it
+    - `SYSTEM_PROMPT` in `src/lib/expansion/prompt.ts` asks for up to 5 different natural first-person sentences the speaker might mean, most likely first. It stays one fixed string with the context, marker and JSON-only instructions, and the user message is unchanged
+    - `MAX_OUTPUT_TOKENS` stays 200
+    - _Requirements: 9.2_
+  - [x] 19.2 Read only the first `CANDIDATES_MAX` candidates in `src/lib/expansion/filter.ts`
+    - `filterSuggestions` walks `candidates.slice(0, CANDIDATES_MAX)`, then trims, length-checks, initials-checks, dedupes and caps at 3 as before; new array, input unchanged
+    - _Requirements: 11.5, 11.9_
+  - [x] 19.3 Update and add the example tests
+    - `prompt.test.ts`: `SYSTEM_PROMPT` asks for up to 5 different sentences, most likely first, and no longer says 1 to 3
+    - `filter.test.ts`: of 5 `iwtgo` candidates whose 1st and 3rd fail the initials check, the 2nd, 4th and 5th are kept in order; a passing 6th candidate is ignored when only 2 of the first 5 pass; blank and repeated entries count toward the first 5
+    - `handler.test.ts`: a 6-candidate Provider reply gives 200 with the first 3 that pass among the first 5, and a passing 6th candidate is ignored when only 2 of the first 5 pass
+    - `schema.test.ts`: `CANDIDATES_MAX` is 5
+    - _Requirements: 9.2, 11.9, 17.3, 17.4_
+  - [x] 19.4 Update the property test in `src/lib/expansion/filter.prop.test.ts`
+    - **Property 16: The filter output is schema-valid, ordered and initials-exact**
+    - **Validates: Requirements 11.5, 11.9**
+    - `refFilter` starts with `list.slice(0, CANDIDATES_MAX)`; generators, tag and `numRuns: PROP_RUNS` unchanged
+  - [x] 19.5 Checkpoint - Ensure all tests pass
+    - Run `bun run test`, `bun run typecheck` and `bun run lint`; with the window removed from `filterSuggestions`, the new filter and handler window cases and Property 16 fail
+
 ## Notes
 
 - Tasks marked with `*` are optional example tests and can be skipped for a faster MVP. All 27 property sub-tasks, the shared generators (3.2, 5.3), the no-network setup (1.4), the fake `fetch` (14.1), and the example tests required by Requirements 5, 13.5 and 17 are required.
@@ -349,7 +375,11 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
     { "id": 12, "tasks": ["14.8", "17.5"] },
     { "id": 13, "tasks": ["14.9", "17.6"] },
     { "id": 14, "tasks": ["17.7"] },
-    { "id": 15, "tasks": ["17.8"] }
+    { "id": 15, "tasks": ["17.8"] },
+    { "id": 16, "tasks": ["19.1"] },
+    { "id": 17, "tasks": ["19.2"] },
+    { "id": 18, "tasks": ["19.3", "19.4"] },
+    { "id": 19, "tasks": ["19.5"] }
   ]
 }
 ```

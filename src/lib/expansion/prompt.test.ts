@@ -6,8 +6,10 @@ import type { ExpandRequest } from './schema';
 const request = (text: string, context: ExpandRequest['context'] = []): ExpandRequest => ({ text, context });
 
 describe('SYSTEM_PROMPT', () => {
-  it('asks for 1 to 3 first-person sentences that use the context, as JSON only', () => {
-    expect(SYSTEM_PROMPT).toContain('1 to 3 natural sentences');
+  it('asks for up to 5 different first-person sentences, most likely first, that use the context, as JSON only', () => {
+    expect(SYSTEM_PROMPT).toContain('Expand their input into up to 5 different natural sentences');
+    expect(SYSTEM_PROMPT).toContain('most likely first');
+    expect(SYSTEM_PROMPT).not.toContain('1 to 3');
     expect(SYSTEM_PROMPT).toContain('first person');
     expect(SYSTEM_PROMPT).toContain('conversation context');
     expect(SYSTEM_PROMPT).toContain('Answer with only a JSON object of the form {"suggestions":');

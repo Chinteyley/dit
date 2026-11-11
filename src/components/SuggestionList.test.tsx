@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, isInaccessible, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -110,5 +110,90 @@ describe('SuggestionList', () => {
     await user.keyboard(' ');
     expect(onPick).toHaveBeenCalledTimes(2);
     expect(calls).toStrictEqual(['pick 1', 'focus', 'pick 1', 'focus']);
+  });
+
+  it('is an ordered list with one card per suggestion (Req 27.1)', () => {
+    renderList();
+    const list = screen.getByRole('list', { name: 'Suggestions' });
+    expect(list.tagName).toBe('OL');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(SUGGESTIONS.length);
+  });
+
+  it('numbers each card with an Ordinal that is hidden and sits outside the button (Req 13.1, 27.2)', () => {
+    renderList();
+    const cards = within(screen.getByRole('list', { name: 'Suggestions' })).getAllByRole('listitem');
+    cards.forEach((card, index) => {
+      const text = SUGGESTIONS[index] ?? '';
+      const ordinal = within(card).getByText(String(index + 1));
+      const button = within(card).getByRole('button');
+      expect(isInaccessible(ordinal)).toBe(true);
+      expect(button.contains(ordinal)).toBe(false);
+      expect(button.textContent).toBe(text);
+      expect(within(card).getByRole('button', { name: text })).toBe(button);
+    });
+  });
+
+  it('shows exactly one "Will be spoken" marker, hidden and on the highlighted card (Req 27.5)', () => {
+    renderList({ highlight: 2 });
+    const markers = screen.getAllByText('Will be spoken');
+    expect(markers).toHaveLength(1);
+    const [marker] = markers;
+    const card = marker?.closest('li');
+    const highlighted = screen.getByRole('button', { name: SUGGESTIONS[2] });
+    expect(card?.contains(highlighted)).toBe(true);
+    expect(highlighted.getAttribute('aria-current')).toBe('true');
+    expect(highlighted.contains(marker ?? null)).toBe(false);
+    expect(isInaccessible(marker as HTMLElement)).toBe(true);
+  });
+
+  it('shows the source label in a row before the cards (Req 27.11)', () => {
+    renderList({ source: 'on-device' });
+    const label = screen.getByText('Source: On-device');
+    const list = screen.getByRole('list', { name: 'Suggestions' });
+    expect(label.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list.contains(label)).toBe(false);
+  });
+
+  it('moves the highlight in place and replaces the list only for new suggestions (Req 27.8, 27.10)', () => {
+    const props = { source: 'ai' as const, currentText: 'i w', onPick: () => undefined };
+    const view = render(<SuggestionList {...props} suggestions={SUGGESTIONS} highlight={0} />);
+    const list = screen.getByRole('list', { name: 'Suggestions' });
+    view.rerender(<SuggestionList {...props} suggestions={SUGGESTIONS} highlight={1} />);
+    expect(screen.getByRole('list', { name: 'Suggestions' })).toBe(list);
+    expect(screen.getByRole('button', { name: SUGGESTIONS[1] }).getAttribute('aria-current')).toBe('true');
+    view.rerender(<SuggestionList {...props} suggestions={['I want water.']} highlight={0} />);
+    expect(screen.getByRole('list', { name: 'Suggestions' })).not.toBe(list);
+  });
+
+  it('shows three hidden numbered Empty_Slots outside the list when there are no suggestions (Req 24.9, 27.12)', () => {
+    renderList({ suggestions: [], source: null, highlight: null, currentText: '' });
+    const list = screen.getByRole('list', { name: 'Suggestions' });
+    expect(within(list).queryAllByRole('listitem')).toHaveLength(0);
+    for (const ordinal of ['1', '2', '3']) {
+      const slot = screen.getByText(ordinal);
+      expect(isInaccessible(slot), ordinal).toBe(true);
+      expect(list.contains(slot), ordinal).toBe(false);
+    }
+    expect(screen.getByText('Tap a suggestion to speak it')).toBeDefined();
+  });
+
+  it('fills only the places the cards leave, numbered after the cards (Req 27.12)', () => {
+    renderList({ suggestions: ['I want water.'], highlight: 0 });
+    const list = screen.getByRole('list', { name: 'Suggestions' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(list).getByText('1')).toBeDefined();
+    for (const ordinal of ['2', '3']) {
+      const slot = screen.getByText(ordinal);
+      expect(isInaccessible(slot), ordinal).toBe(true);
+      expect(list.contains(slot), ordinal).toBe(false);
+      // An Empty_Slot is no target: the only buttons are the cards' own.
+      expect(slot.closest('button')).toBeNull();
+    }
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toStrictEqual(['I want water.']);
+    cleanup();
+    renderList();
+    // Three cards leave no place: every Ordinal on screen belongs to a card in the list.
+    const full = screen.getByRole('list', { name: 'Suggestions' });
+    for (const ordinal of ['1', '2', '3']) expect(full.contains(screen.getByText(ordinal)), ordinal).toBe(true);
   });
 });
