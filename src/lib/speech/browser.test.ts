@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createManualClock, createManualScheduler } from '@/lib/input';
 import {
   VOICES_POLL_MS,
   recognitionErrorOf,
-  webSpeechInput,
+  browserRecognitionInput,
   webSpeechOutput,
   type RecognitionLike,
   type RecognitionResultEventLike,
@@ -226,7 +226,7 @@ class FakeRecognition implements RecognitionLike {
 function recognitionRig(win: RecognitionWindow = { SpeechRecognition: FakeRecognition }) {
   FakeRecognition.instances = [];
   FakeRecognition.failStart = false;
-  const input = webSpeechInput(win);
+  const input = browserRecognitionInput(win);
   const events: string[] = [];
   input.onInterim((text) => events.push(`interim:${text}`));
   input.onFinal((text) => events.push(`final:${text}`));
@@ -235,7 +235,7 @@ function recognitionRig(win: RecognitionWindow = { SpeechRecognition: FakeRecogn
   return { input, events };
 }
 
-describe('webSpeechInput', () => {
+describe('browserRecognitionInput', () => {
   it('starts continuous recognition with interim results in the page language', () => {
     const { input } = recognitionRig({
       SpeechRecognition: FakeRecognition,
@@ -248,7 +248,7 @@ describe('webSpeechInput', () => {
     input.stop();
     expect(rec?.stops).toBe(1);
     input.start();
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(FakeRecognition.instances).toHaveLength(2);
   });
 
   it('falls back to webkitSpeechRecognition and to the language "en"', () => {
@@ -261,6 +261,17 @@ describe('webSpeechInput', () => {
     const { input } = recognitionRig({});
     expect(input.isSupported()).toBe(false);
     expect(input.start()).toEqual({ ok: false, error: 'other' });
+  });
+
+  it('creates a fresh recognizer even when stopping the previous run throws', () => {
+    const { input } = recognitionRig();
+    input.start();
+    const rec = FakeRecognition.instances[0]!;
+    vi.spyOn(rec, 'stop').mockImplementation(() => { throw new Error('already stopped'); });
+    input.stop();
+    input.start();
+    expect(FakeRecognition.instances).toHaveLength(2);
+    expect(FakeRecognition.instances[1]?.onresult).not.toBeNull();
   });
 
   it('returns a failed Result when start() throws', () => {
@@ -292,11 +303,11 @@ describe('webSpeechInput', () => {
     }
     expect(events).toEqual([
       'error:permission-denied',
-      'error:permission-denied',
+      'error:service-unavailable',
       'error:no-microphone',
       'error:no-speech',
       'error:aborted',
-      'error:other',
+      'error:network',
     ]);
     const others: RecognitionError[] = ['language-not-supported', 'bad-grammar', ''].map(recognitionErrorOf);
     expect(others).toEqual(['other', 'other', 'other']);

@@ -15,7 +15,7 @@ export interface ListenToggleProps {
 
 /**
  * The Listen_Toggle (Requirement 18): a switch named "Listen" that turns partner speech
- * recognition on and off, disabled with an explanation when the browser has none. It shows the
+ * recognition on and off, disabled when neither browser recognition nor capture is available. It shows the
  * latest interim transcript and any message about why listening stopped.
  */
 export function ListenToggle({ listen, onToggle, returnFocus = true }: ListenToggleProps) {
@@ -37,7 +37,7 @@ export function ListenToggle({ listen, onToggle, returnFocus = true }: ListenTog
       />
       {listen.interim === '' ? null : <p className="text-lg text-text italic">{listen.interim}</p>}
       {message === null ? null : (
-        <p id={messageId} className="text-base text-muted">
+        <p id={messageId} role="status" className="text-base text-muted">
           {message}
         </p>
       )}

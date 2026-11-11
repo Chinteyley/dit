@@ -24,7 +24,7 @@ export interface OnboardingFlowProps {
 type ShownStep = keyof typeof STEP_HEADINGS;
 
 /** Smallest band the Practice_Step accepts beside the Keying_Surface before it scrolls the page. */
-const PRACTICE_MIN = { width: 300, height: 260 } as const;
+const PRACTICE_MIN = { width: 300, height: 350 } as const;
 
 const shownStep = (state: OnboardingState): ShownStep | null => (state.step === 'cancelled' ? null : state.step);
 
@@ -124,17 +124,20 @@ export function OnboardingFlow({ state, dispatch, startingWpm, id }: OnboardingF
       style={placed}
       className={
         pressable
-          ? 'pointer-events-none fixed z-30 m-0 max-w-none overflow-hidden bg-transparent p-4 text-text'
+          ? 'pointer-events-none fixed z-30 m-0 flex max-w-none flex-col overflow-hidden bg-transparent p-4 text-text'
           : 'm-auto max-h-dvh w-[min(100%,42rem)] max-w-none overflow-y-auto bg-transparent p-4 text-text backdrop:bg-bg/85'
       }
     >
       <div
         className={`pointer-events-auto mx-auto flex w-full max-w-[40rem] flex-col gap-7 rounded-3xl bg-surface p-6 sm:p-8 ${
-          pressable ? 'max-h-full overflow-y-auto border border-border' : ''
+          pressable ? 'min-h-0 overflow-y-auto border border-border [@media(max-height:760px)]:gap-4 [@media(max-height:760px)]:p-5 [@media(max-height:480px)]:gap-2 [@media(max-height:480px)]:p-4' : ''
         }`}
       >
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          <h2 id={titleId} className="text-2xl font-semibold text-text">
+          <h2
+            id={titleId}
+            className={`text-2xl font-semibold text-text ${pressable ? '[@media(max-height:480px)]:sr-only' : ''}`}
+          >
             {STEP_HEADINGS[step]}
           </h2>
           {rerun && step !== 'done' ? (

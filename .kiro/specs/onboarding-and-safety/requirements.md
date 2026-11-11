@@ -414,3 +414,6 @@ Review integration detail: setup cancellation snapshots the session engine’s c
 25.3. WHILE Practice or Legend is non-modal, THE onboarding panel SHALL stack above the cheat sheet; WHEN Escape is pressed during either step of a re-run without an active modal, THE flow SHALL cancel setup.
 25.4. WHEN the cheat sheet opens, THE sheet SHALL list Commands first in Speak, Next suggestion, Delete, SOS order, size pages to the available panel without an eight-entry cap, and show all codes together when they fit.
 25.5. WHILE the cheat sheet is open, THE sheet SHALL provide visible Previous and Next buttons and a polite live announcement of Page X of Y, and SHALL retain six-dot single-input paging.
+
+26.1. WHEN no free band beside the Keying_Surface fits the Practice_Step or Legend_Step panel (a short or narrow window), THE Onboarding_Flow SHALL show the panel as a sheet along the bottom edge, as tall as its content needs and at most 72% of the viewport, so the top of the Keying_Surface stays visible and the panel is never cut off; its content SHALL scroll inside the sheet when it is still taller.
+26.2. WHILE the viewport is 480 px tall or less, THE Practice_Step SHALL use a compact layout (smaller prompt, tighter spacing, the step heading kept for assistive technology but visually hidden) so its controls stay on screen at phone-landscape sizes.

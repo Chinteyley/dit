@@ -1,6 +1,6 @@
 /**
- * Web Speech adapters (design "lib/speech/browser.ts"). The only speech code that touches
- * browser APIs, and only through the window object passed in, so tests drive it with fakes.
+ * Speech adapters (design "lib/speech/browser.ts"). Browser APIs are passed in;
+ * recorder.ts provides capture when the native recognizer has no usable backend.
  *
  * Checked against MDN (SpeechSynthesis, SpeechSynthesisErrorEvent.error, SpeechRecognition,
  * SpeechRecognitionErrorEvent.error): cancel() makes the cut-off utterance end with the error
@@ -11,6 +11,8 @@
  * Privacy: transcripts and sentences are handed to the caller only; nothing is logged or stored.
  */
 import { err, ok, type Unsubscribe } from '@/lib/input';
+import { adaptiveSpeechInput } from './adaptive';
+import { recorderSpeechInput, type CaptureWindow } from './recorder';
 import type { RecognitionError, SpeechInput, SpeechOutput, UtteranceOutcome, VoiceInfo } from './types';
 
 /** How long after subscribing the voice list is read once more (Req 17.7 asks for 1 s). */
@@ -169,8 +171,11 @@ export interface RecognitionWindow {
 export function recognitionErrorOf(code: string): RecognitionError {
   switch (code) {
     case 'not-allowed':
-    case 'service-not-allowed':
       return 'permission-denied';
+    case 'service-not-allowed':
+      return 'service-unavailable';
+    case 'network':
+      return 'network';
     case 'audio-capture':
       return 'no-microphone';
     case 'no-speech':
@@ -182,7 +187,16 @@ export function recognitionErrorOf(code: string): RecognitionError {
   }
 }
 
-export function webSpeechInput(win: RecognitionWindow): SpeechInput {
+const unavailableRecognition = new WeakSet<RecognitionWindow>();
+
+export function webSpeechInput(win: RecognitionWindow & CaptureWindow): SpeechInput {
+  return adaptiveSpeechInput(browserRecognitionInput(win), recorderSpeechInput(win), {
+    get: () => unavailableRecognition.has(win),
+    set: () => { unavailableRecognition.add(win); },
+  });
+}
+
+export function browserRecognitionInput(win: RecognitionWindow): SpeechInput {
   const interim = new Set<(text: string) => void>();
   const final = new Set<(text: string) => void>();
   const errors = new Set<(error: RecognitionError) => void>();
@@ -259,7 +273,14 @@ export function webSpeechInput(win: RecognitionWindow): SpeechInput {
     },
     stop() {
       try {
-        recognition?.stop();
+        const rec = recognition;
+        recognition = null;
+        if (rec) {
+          rec.onresult = null;
+          rec.onerror = null;
+          rec.onend = null;
+          rec.stop();
+        }
       } catch {
         // Already stopped.
       }

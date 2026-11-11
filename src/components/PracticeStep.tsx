@@ -44,10 +44,10 @@ export function PracticeStep({ state, dispatch, startingWpm }: PracticeStepProps
   const result = state.result;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 [@media(max-height:480px)]:gap-3">
       {prompt !== null ? (
         <div className="flex flex-col gap-1">
-          <p className="text-[2.5rem] leading-tight font-semibold tracking-tight text-text">{prompt.prompt}</p>
+          <p className="text-[2.5rem] leading-tight font-semibold tracking-tight text-text [@media(max-height:480px)]:text-2xl">{prompt.prompt}</p>
           <p className="text-lg text-muted">{prompt.count}</p>
         </div>
       ) : null}

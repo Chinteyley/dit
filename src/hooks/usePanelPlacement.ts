@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from 'react';
-import { freeBands, placePanel, type Rect } from '@/lib/onboarding';
+import { placePanel, type Rect } from '@/lib/onboarding';
 
 /** The Keying_Surface, found by its stable role and name (conversation-ui Requirement 10). */
 export const KEYING_SURFACE_SELECTOR = '[role="button"][aria-label="Keying surface"]';
@@ -31,9 +31,17 @@ function measure(minSize: PanelSize, allowScroll: boolean): Rect {
   const keying = surfaceRect(surface);
   const again = placePanel(viewport, keying, minSize);
   if (again.kind === 'rect') return again.rect;
-  const [, above] = freeBands(viewport, keying);
-  if (above !== undefined && above.width > 0 && above.height > 0) return above;
-  return { top: 0, left: 0, width: viewport.width, height: Math.max(0, Math.round(viewport.height / 2)) };
+  return bottomSheet(viewport, minSize);
+}
+
+/**
+ * The fallback when no free band fits the panel (a short or narrow window): a sheet along the
+ * bottom edge, as tall as the panel needs but at most 72% of the viewport, so the top of the
+ * Keying_Surface stays visible and pressable and the panel is never cut off.
+ */
+function bottomSheet(viewport: Rect, minSize: PanelSize): Rect {
+  const height = Math.max(0, Math.round(Math.min(minSize.height, viewport.height * 0.72)));
+  return { top: viewport.top + viewport.height - height, left: viewport.left, width: viewport.width, height };
 }
 
 /**
