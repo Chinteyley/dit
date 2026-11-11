@@ -1,6 +1,8 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { classify, type InputClassification } from './classify';
+import { PHRASE_BANK } from './phrase-bank';
+import { initialsOf } from './normalize';
 import { normalizedTokens } from './normalize';
 import { PROP_RUNS, letterArb, renderTokensArb, renderedTokensArb, tokenArb } from './test-support/arbitraries';
 import { WORD_LIST } from './word-freq';
@@ -11,10 +13,10 @@ const KINDS = ['initials', 'partial', 'words', 'empty'];
 function refClassification(tokens: readonly string[]): { kind: InputClassification['kind']; initials?: string } {
   if (tokens.length === 0) return { kind: 'empty' };
   const only = tokens[0] ?? '';
-  if (tokens.length === 1 && only.length >= 2 && only.length <= 12 && /^[a-z]+$/.test(only) && !WORD_LIST.includes(only)) {
+  if (tokens.length === 1 && only.length >= 2 && only.length <= 12 && /^[a-z]+$/.test(only) && (!WORD_LIST.includes(only) || (only.length === 2 && PHRASE_BANK.some((p) => initialsOf(p.text) === only)))) {
     return { kind: 'initials', initials: only };
   }
-  if (tokens.length >= 2 && tokens.length <= 12 && tokens.every((token) => /^[a-z]$/.test(token))) {
+  if (tokens.length >= 2 && tokens.join('').length <= 12 && tokens.every((token) => /^[a-z]+$/.test(token) && (token.length === 1 || (!WORD_LIST.includes(token) && (!WORD_LIST.some((word) => word.length > token.length && word.startsWith(token)) || PHRASE_BANK.some((p) => initialsOf(p.text) === tokens.join(''))))))) {
     return { kind: 'initials', initials: tokens.join('') };
   }
   const last = tokens[tokens.length - 1] ?? '';
@@ -88,4 +90,17 @@ describe('classifier properties', () => {
       { numRuns: PROP_RUNS },
     );
   });
+});
+
+// Feature: expansion, review 20.1: pause placement preserves eligible initials.
+it('recognises paused initials and exact two-letter phrase initials', () => {
+  fc.assert(fc.property(fc.constantFrom('iwtgo', 'cihsw'), fc.integer({ min: 1, max: 4 }), (text, at) => {
+    const paused = `${text.slice(0, at)} ${text.slice(at)}`;
+    const tokens = normalizedTokens(paused);
+    const eligible = tokens.every((t) => t.length === 1 || (!WORD_LIST.includes(t) && !WORD_LIST.some((w) => w.startsWith(t) && w.length > t.length)));
+    if (eligible) expect(classify(paused)).toMatchObject({ kind: 'initials', initials: text });
+  }), { numRuns: PROP_RUNS });
+  for (const text of ['iw tgo', 'i wtgo', 'ci hsw']) expect(classify(text).kind).toBe('initials');
+  for (const text of ['it', 'is', 'if', 'in', 'id', 'im']) expect(classify(text)).toMatchObject({ kind: 'initials', initials: text });
+  for (const text of ['i want', 'water']) expect(classify(text).kind).toBe('words');
 });

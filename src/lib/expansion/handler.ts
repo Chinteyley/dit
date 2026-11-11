@@ -85,7 +85,7 @@ function hostUnder(protocol: string, header: string | null): string | null {
 }
 
 /**
- * True when the Origin header is absent, or is a plain origin (no credentials, path, query or
+ * True when the Origin header is a plain origin (no credentials, path, query or
  * fragment; not `'null'`, unparsable or opaque) that names this server:
  *
  * - With a `Sec-Fetch-Site` header, only its value decides: `same-origin` passes. Browsers set
@@ -98,7 +98,7 @@ function hostUnder(protocol: string, header: string | null): string | null {
  * Scheme and host compare case-insensitively and an omitted port is the scheme's default port.
  */
 export function checkOrigin(originHeader: string | null, requestUrl: string, headers: Headers = new Headers()): boolean {
-  if (originHeader === null) return true;
+  if (originHeader === null) return false;
   const origin = parseOrigin(originHeader);
   if (origin === null) return false;
   const fetchSite = headers.get('sec-fetch-site');

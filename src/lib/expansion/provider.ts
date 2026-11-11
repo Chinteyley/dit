@@ -15,7 +15,8 @@ import type { ChatMessage } from './prompt';
  * classification (https://docs.fireworks.ai/guides/recommended-models), and its thinking can be
  * switched off (https://docs.fireworks.ai/api-reference/post-chatcompletions, reasoning_effort),
  * so no reasoning preamble uses up the 200-token budget before the JSON answer.
- * Live check pending: the 3 sample prompts (expansion tasks.md 13.4) still need a run with a key.
+ * Live check complete (task 13.4, user-verified): correct top suggestions for iwtgo, cihsw,
+ * mbh, tyfc and wtt in 0.7–2.4 s.
  */
 export const DEFAULT_MODEL = 'accounts/fireworks/models/deepseek-v4p1-flash-1017';
 

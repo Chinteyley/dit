@@ -345,3 +345,15 @@ Out of scope: UI rendering of suggestions, suggestion highlight and selection, s
 6. THE Output_Parser property tests SHALL check that for every generated string of 0 to 10,000 characters, including well-formed JSON, truncated JSON, JSON with non-string array elements and arbitrary Unicode, the Output_Parser returns without throwing a list in which every element is a string.
 7. THE Suggestion_Filter property tests SHALL check that for every generated list of 0 to 50 strings, each of 0 to 1,000 characters, and every generated Input_Classification, the output is accepted by the Schema_Module as Expand_Response `suggestions`, and that for `'initials'` Input_Classifications the Initials_Of of every output Suggestion equals the Initials_Letters.
 8. THE expansion property tests SHALL each run with fast-check for at least 200 generated cases, and each property test SHALL be tagged with the property ID from the expansion design document that it verifies.
+
+
+## Review corrections: initials, request freshness and public endpoint (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+20.1. THE app SHALL satisfy: Recognise paused initials across letters-only tokens (2–12 letters total) when no multi-letter token is a known word or proper word prefix; prioritise exact phrase-bank initials for single two-letter tokens, including known words. Preserve real words and partial phrases.
+20.2. THE app SHALL satisfy: Invalidate requests immediately on any text or prepared-context change with a monotonically increasing generation; deliver/cache only the current generation. Clearing history immediately replaces client context and cancels old pending/debounced work.
+20.3. THE app SHALL satisfy: Reject POST requests without Origin before reading the body or counting rate limits; retain same-origin, Sec-Fetch-Site and LAN Host matching.
+20.4. THE app SHALL satisfy: Record the completed live default-model check: deepseek-v4p1-flash-1017 returned correct top suggestions for iwtgo, cihsw, mbh, tyfc and wtt in 0.7–2.4 seconds (user-provided verification).
+
+Review clarification: `ci` is a prefix of city, so an exact joined phrase-bank match also permits paused initials when no multi-letter token is a known word (`ci hsw`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.

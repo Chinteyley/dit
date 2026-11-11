@@ -6,7 +6,7 @@ import { POST, runtime } from './route';
 
 const body = JSON.stringify({ text: 'iwtgo', context: [{ role: 'partner', text: 'Do you need anything?' }] });
 const request = (headers: Record<string, string> = {}): Request =>
-  new Request('https://dit.test/api/expand', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body });
+  new Request('https://dit.test/api/expand', { method: 'POST', headers: { origin: 'https://dit.test', 'content-type': 'application/json', ...headers }, body });
 
 let info: MockInstance<typeof console.info>;
 

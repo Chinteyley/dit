@@ -77,6 +77,7 @@ function aiResultOf(outcome: DeadlineOutcome<RouteReply>, trimmed: string): Expa
 export function createExpansionClient(deps: ClientDeps, onResult: (result: ExpansionResult) => void): ExpansionClient {
   let latestText = '';
   let latestContext: readonly Turn[] = [];
+  let generation = 0;
   let debounce: { readonly handle: unknown } | null = null;
   let pending: AbortController | null = null;
   let disposed = false;
@@ -136,7 +137,7 @@ export function createExpansionClient(deps: ClientDeps, onResult: (result: Expan
     return { status: res.status, bodyText: await res.text() };
   };
 
-  const start = (text: string, context: readonly Turn[]): void => {
+  const start = (text: string, context: readonly Turn[], requestedGeneration: number): void => {
     pending?.abort();
     pending = null;
     const trimmed = trimWhitespace(text);
@@ -168,8 +169,8 @@ export function createExpansionClient(deps: ClientDeps, onResult: (result: Expan
         if (pending === controller) pending = null;
         // Superseded by a newer expansion: nothing is delivered and nothing runs on-device.
         if (outcome.kind === 'aborted' || disposed) return;
-        // The text changed while the request was out: discard, and do not cache.
-        if (text !== latestText) return;
+        // Text and context must still belong to this request, including an away-and-back edit.
+        if (requestedGeneration !== generation) return;
         const ai = aiResultOf(outcome, trimmed);
         if (ai !== undefined) {
           remember(key, ai);
@@ -185,18 +186,21 @@ export function createExpansionClient(deps: ClientDeps, onResult: (result: Expan
     update(text, context) {
       try {
         if (disposed) return;
-        // Unchanged non-empty text with a new prepared context (a partner line) is a new expansion too.
-        const contextChanged =
-          text === latestText && trimWhitespace(text) !== '' && contextKey(context) !== contextKey(latestContext);
-        latestContext = context;
-        if (text === latestText && !contextChanged) return;
+        const contextChanged = contextKey(context) !== contextKey(latestContext);
+        const textChanged = text !== latestText;
+        latestContext = context.map((turn) => ({ ...turn }));
+        if (!textChanged && !contextChanged) return;
         latestText = text;
+        generation += 1;
         clearDebounce();
+        pending?.abort();
+        pending = null;
+        if (!textChanged && trimWhitespace(text) === '') return;
         debounce = {
           handle: deps.timers.setTimeout(() => {
             debounce = null;
             try {
-              start(latestText, latestContext);
+              start(latestText, latestContext, generation);
             } catch {
               // Never throw from a timer callback.
             }

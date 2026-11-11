@@ -310,6 +310,7 @@ describe('expansion client properties', { timeout: 60_000 }, () => {
                 latestRaw = step.text;
                 if (step.text !== latest) {
                   latest = step.text;
+                  live = null;
                   due = now + 300;
                 }
                 client.update(step.text, []);
@@ -528,4 +529,20 @@ describe('expansion client properties', { timeout: 60_000 }, () => {
       { numRuns: PROP_RUNS },
     );
   });
+});
+
+// Feature: expansion, review 20.2: no delivery across a context generation.
+it('invalidates a pending response immediately when context changes, including away and back', async () => {
+  await fc.assert(fc.asyncProperty(fc.boolean(), async (back) => {
+    const r = rig();
+    r.client.update('it', [{ role: 'partner', text: 'Old history' }]);
+    await vi.advanceTimersByTimeAsync(300);
+    r.client.update('it', []);
+    if (back) r.client.update('it', [{ role: 'partner', text: 'Old history' }]);
+    r.fake.calls[0]?.resolve(200, answer(['Old suggestion.']));
+    await settle();
+    expect(r.results).toEqual([]);
+    expect(r.fake.calls[0]?.signal?.aborted).toBe(true);
+    r.client.dispose();
+  }), { numRuns: PROP_RUNS });
 });

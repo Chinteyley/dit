@@ -228,10 +228,10 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
     - _Requirements: 13.2, 13.3, 13.4, 13.5, 13.7, 13.8, 13.9_
   - [x] 13.3 Choose the Default_Model from Fireworks' current serverless list
     - Done on 2026-11-10 without a key, from the Fireworks models page filtered to serverless: no non-reasoning instruct chat model is listed, so the choice is DeepSeek V4.1 Flash 1017, whose thinking `reasoning_effort: 'none'` switches off
-    - Record the chosen ID, the check date, the reason and that the live check (13.4) is pending in a comment above `DEFAULT_MODEL`
+    - Record the chosen ID, the check date, the reason and the completed live check (13.4) in a comment above `DEFAULT_MODEL`
     - _Requirements: 13.4, 13.5_
-  - [ ] 13.4 Live check of the Default_Model with a key (manual; a human with a Fireworks key runs it)
-    - Send 3 sample prompts built with `buildPrompt` (for example `iwtgo` with a partner line "Do you need anything?", `i want wa` with no context, and `i w t g o` with a partner line about the weather) using the exact request body shape from 13.1, and confirm each reply holds the `{"suggestions": [...]}` JSON within 200 tokens and about 1.5 s, with no reasoning preamble consuming the budget
+  - [x] 13.4 Live check of the Default_Model with a key (manual; a human with a Fireworks key runs it)
+    - Completed check (user-provided evidence): `deepseek-v4p1-flash-1017` returned correct top suggestions for `iwtgo`, `cihsw`, `mbh`, `tyfc` and `wtt` in 0.7–2.4 s
     - If the model fails, pick another fast serverless chat model whose thinking can be switched off, update `DEFAULT_MODEL` (and `DEFAULT_MODEL_REASONING_EFFORT` if needed), and record the chosen ID and the check date in a comment above the constant
     - Never commit the key or write it to any file other than a local, git-ignored `.env.local`
     - _Requirements: 13.4, 13.5_
@@ -350,7 +350,7 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
 ## Notes
 
 - Tasks marked with `*` are optional example tests and can be skipped for a faster MVP. All 27 property sub-tasks, the shared generators (3.2, 5.3), the no-network setup (1.4), the fake `fetch` (14.1), and the example tests required by Requirements 5, 13.5 and 17 are required.
-- Task 13.3 chose `DEFAULT_MODEL` from Fireworks' serverless list without a key. Task 13.4 is manual and needs a Fireworks API key; until a human runs it, the comment above `DEFAULT_MODEL` says the live check is pending.
+- Task 13.3 chose `DEFAULT_MODEL` from Fireworks' serverless list without a key. Task 13.4 is complete: the user verified correct top suggestions for iwtgo, cihsw, mbh, tyfc and wtt in 0.7–2.4 s with the default model.
 - Each property test is one `fc.assert` tagged `// Feature: expansion, Property N: <title>` with `numRuns: PROP_RUNS` (200).
 - Tests never call the real network; the setup file from 1.4 makes any real `fetch` fail.
 - Use `bun run test`, never `bun test`.
@@ -383,3 +383,19 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
   ]
 }
 ```
+
+
+## Review corrections: initials, request freshness and public endpoint (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+- [x] 20.1 Recognise paused initials across letters-only tokens (2–12 letters total) when no multi-letter token is a known word or proper word prefix; prioritise exact phrase-bank initials for single two-letter tokens, including known words. Preserve real words and partial phrases.
+  - Verified: `classify.prop.test.ts; word-freq.test.ts`.
+- [x] 20.2 Invalidate requests immediately on any text or prepared-context change with a monotonically increasing generation; deliver/cache only the current generation. Clearing history immediately replaces client context and cancels old pending/debounced work.
+  - Verified: `client.prop.test.ts; hooks/session-expansion.prop.test.ts`.
+- [x] 20.3 Reject POST requests without Origin before reading the body or counting rate limits; retain same-origin, Sec-Fetch-Site and LAN Host matching.
+  - Verified: `handler.test.ts; handler.prop.test.ts; route.test.ts`.
+- [x] 20.4 Record the completed live default-model check: deepseek-v4p1-flash-1017 returned correct top suggestions for iwtgo, cihsw, mbh, tyfc and wtt in 0.7–2.4 seconds (user-provided verification).
+  - Verified: `user-provided completed live check; no new provider call`.
+
+Review clarification: `ci` is a prefix of city, so an exact joined phrase-bank match also permits paused initials when no multi-letter token is a known word (`ci hsw`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.

@@ -39,11 +39,15 @@ describe('handleExpand checks', () => {
     expect(rig.fake.calls).toHaveLength(0);
   });
 
-  it('passes a same-origin or absent Origin', async () => {
+  it('passes same-origin and rejects absent Origin', async () => {
     const rig = createRig({ apiKey: undefined });
     await expectError(rig, post(VALID, { origin: SAME_ORIGIN }), 503, 'not_configured');
     const second = createRig({ apiKey: undefined });
-    await expectError(second, post(VALID), 503, 'not_configured');
+    const missing = post(unreadableStream());
+    missing.headers.delete('origin');
+    await expectError(second, missing, 403, 'forbidden_origin');
+    expect(second.limiter.counted()).toBe(0);
+    expect(second.fake.calls).toHaveLength(0);
   });
 
   it('passes a page opened by LAN address although request.url names localhost (next start, next dev)', async () => {
@@ -241,7 +245,7 @@ describe('handleExpand provider outcomes', () => {
 
 describe('request-check helpers', () => {
   it('compares origins by scheme, host and effective port', () => {
-    expect(checkOrigin(null, 'https://dit.test/api/expand')).toBe(true);
+    expect(checkOrigin(null, 'https://dit.test/api/expand')).toBe(false);
     expect(checkOrigin('https://DIT.test:443', 'https://dit.test/api/expand')).toBe(true);
     expect(checkOrigin('https://dit.test/', 'https://dit.test/api/expand')).toBe(true);
     expect(checkOrigin('https://dit.test/path', 'https://dit.test/api/expand')).toBe(false);
@@ -285,9 +289,9 @@ describe('request-check helpers', () => {
       expect(checkOrigin('http://dit.example.org', NEXT_URL, headers)).toBe(false);
       expect(checkOrigin('http://localhost:3000', NEXT_URL, headers)).toBe(false);
     }
-    // A malformed Origin fails whatever Sec-Fetch-Site says; an absent one passes.
+    // A malformed Origin fails whatever Sec-Fetch-Site says; an absent one fails.
     expect(checkOrigin('null', NEXT_URL, new Headers({ 'sec-fetch-site': 'same-origin' }))).toBe(false);
-    expect(checkOrigin(null, NEXT_URL, new Headers({ 'sec-fetch-site': 'cross-site' }))).toBe(true);
+    expect(checkOrigin(null, NEXT_URL, new Headers({ 'sec-fetch-site': 'cross-site' }))).toBe(false);
   });
 
   it('keys clients by x-forwarded-for, then x-real-ip, then one shared key', () => {

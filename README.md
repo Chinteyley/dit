@@ -28,7 +28,6 @@ Every speaker function works with the one input alone. The partner uses ordinary
 ### Pending manual checks
 
 - Real switch, touch tablet and webcam checks (input-sources task 17).
-- A live expansion check with a model key (expansion task 13.4).
 - Tablet, zoom, reduced-motion and contrast checks (conversation-ui task 16).
 - Alarm volume, blink alarm, tablet layout and screen reader checks (onboarding-and-safety task 23).
 
@@ -62,7 +61,7 @@ All three are optional and server-only. Copy `.env.example` to `.env.local` and 
 
 With no key, or with no network, the app still works fully. Each set of suggestions is labelled "Source: AI" or "Source: On-device", so you always know which one answered.
 
-The default model is DeepSeek V4.1 Flash 1017 on Fireworks serverless, chosen on 2026-11-10. Expansion needs a fast answer with no thinking step. Fireworks' serverless list had no chat model without a thinking step, and the spec's earlier candidate, Qwen3 8B, is no longer offered serverless. Fireworks recommends DeepSeek V4.1 Flash 1017 for fast extraction, classification and low-latency use, and its thinking can be switched off. Requests to the default model therefore send `reasoning_effort: "none"`. A model set with `DIT_MODEL` gets exactly `model`, `messages` and `max_tokens`, with no `reasoning_effort`. A live check of the prompt with a real key is still pending (expansion task 13.4).
+The default model is DeepSeek V4.1 Flash 1017 on Fireworks serverless, chosen on 2026-11-10. Expansion needs a fast answer with no thinking step. Fireworks' serverless list had no chat model without a thinking step, and the spec's earlier candidate, Qwen3 8B, is no longer offered serverless. Fireworks recommends DeepSeek V4.1 Flash 1017 for fast extraction, classification and low-latency use, and its thinking can be switched off. Requests to the default model therefore send `reasoning_effort: "none"`. A model set with `DIT_MODEL` gets exactly `model`, `messages` and `max_tokens`, with no `reasoning_effort`. The live check is complete (expansion task 13.4): correct top suggestions for `iwtgo`, `cihsw`, `mbh`, `tyfc` and `wtt` in 0.7–2.4 s (user-verified).
 
 How the expansion call works:
 

@@ -20,7 +20,7 @@ export type BodyInit_ = string | Uint8Array | ReadableStream<Uint8Array> | null;
 export function post(body: BodyInit_, headers: Record<string, string> = {}, url: string = ROUTE_URL): Request {
   const init: RequestInit & { duplex: 'half' } = {
     method: 'POST',
-    headers,
+    headers: { origin: SAME_ORIGIN, ...headers },
     body: body instanceof Uint8Array ? new Blob([body.slice()]) : body,
     duplex: 'half',
   };

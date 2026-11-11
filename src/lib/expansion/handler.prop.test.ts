@@ -56,8 +56,8 @@ const apiKeyArb = fc
 const ipArb = fc.tuple(fc.nat(255), fc.nat(255), fc.nat(255), fc.nat(255)).map((parts) => parts.join('.'));
 
 describe('route handler properties', () => {
-  it('passes the origin check exactly for an absent Origin or one that names this server', () => {
-    // Feature: expansion, Property 18: The origin check passes exactly same-origin or absent Origin
+  it('passes the origin check exactly for a present Origin that names this server', () => {
+    // Feature: expansion, Property 18: The origin check passes exactly same-origin with a present Origin
     const defaultPortOf = (scheme: string): number => (scheme === 'https' ? 443 : 80);
     /** A plain origin by its parts (effective port), or an absent or malformed header. */
     type OriginCase =
@@ -132,7 +132,7 @@ describe('route handler properties', () => {
         if (host !== undefined) headers.set('host', host.header);
         if (fetchSite !== undefined) headers.set('sec-fetch-site', fetchSite);
         let expected: boolean;
-        if (origin.kind === 'absent') expected = true;
+        if (origin.kind === 'absent') expected = false;
         else if (origin.kind === 'malformed') expected = false;
         else if (fetchSite !== undefined) expected = fetchSite.toLowerCase() === 'same-origin';
         else
@@ -194,8 +194,9 @@ describe('route handler properties', () => {
         if (c.oversizedHeader) headers['content-length'] = String(BODY_LIMIT_BYTES + 1 + bytes.byteLength);
         else if (!useStream) headers['content-length'] = String(bytes.byteLength);
         const request = post(useStream ? streamOf(bytes) : bytes, headers);
+        if (!c.crossOrigin && !c.originHeader) request.headers.delete('origin');
 
-        const expected = c.crossOrigin
+        const expected = c.crossOrigin || !c.originHeader
           ? [403, 'forbidden_origin']
           : c.rateFull
             ? [429, 'rate_limited']
@@ -215,7 +216,7 @@ describe('route handler properties', () => {
           expect(response.body).toStrictEqual({ error: expected[1] });
           expect(rig.fake.calls).toHaveLength(0);
         }
-        expect(rig.limiter.counted() - before).toBe(!c.crossOrigin && !c.rateFull ? 1 : 0);
+        expect(rig.limiter.counted() - before).toBe(!c.crossOrigin && c.originHeader && !c.rateFull ? 1 : 0);
       }),
       { numRuns: PROP_RUNS },
     );

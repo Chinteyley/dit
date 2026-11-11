@@ -493,7 +493,7 @@ The timer is cleared and the external listener removed on settlement. Results th
 ### provider.ts
 
 ```ts
-/** Chosen 2026-11-10 from Fireworks' serverless list; live prompt check pending a key (task 13.4). */
+/** Chosen 2026-11-10 from Fireworks' serverless list; live prompt check complete (task 13.4). */
 export const DEFAULT_MODEL = 'accounts/fireworks/models/deepseek-v4p1-flash-1017';
 /** Sent as reasoning_effort only with DEFAULT_MODEL; switches its thinking off. */
 export const DEFAULT_MODEL_REASONING_EFFORT = 'none';
@@ -550,7 +550,7 @@ Only the first choice is checked (13.6, 13.7).
 1. Open Fireworks' current serverless model list (the models page filtered to serverless, or `GET https://api.fireworks.ai/inference/v1/models` with a key) and choose the model from it. Done on 2026-11-10 without a key: the list had no non-reasoning instruct chat model, so the choice is DeepSeek V4.1 Flash 1017, whose thinking `reasoning_effort: 'none'` switches off.
 2. A model that emits a reasoning preamble may use up the 200 tokens before the JSON. So the body carries `reasoning_effort: 'none'` (`DEFAULT_MODEL_REASONING_EFFORT`) when the model is `DEFAULT_MODEL`, and only then. A `DIT_MODEL` override gets exactly `model`, `messages` and `max_tokens`, because other models reject the field (GPT-OSS answers "Invalid reasoning effort: none", and MiniMax M2 requires reasoning).
 3. Record the chosen ID and the check date in a comment above the constant.
-4. Live check (task 13.4, manual, needs a key): send the 3 sample prompts and confirm each reply holds the JSON object within 200 tokens and about 1.5 s. If it does not, pick another fast serverless chat model whose thinking can be switched off.
+4. Live check (task 13.4) is complete: the user verified correct top suggestions for `iwtgo`, `cihsw`, `mbh`, `tyfc` and `wtt` in 0.7–2.4 s with the default model. Automated tests continue to use fakes.
 
 ### handler.ts
 
@@ -1157,3 +1157,12 @@ Design polish pass (2026-11-11):
   - Live probe (`next start` with the Default_Model; 10 initials inputs such as `iwtgo`, `cyctn` and `wdwhfd`, each sent twice per run). Old prompt, 2 runs: 32 of 40 answers held 3 suggestions, 6 held 2 and 2 held 1; in the 20 replies logged in full the model returned 2 to 5 sentences, mostly 3. New prompt, 3 runs: in the 36 replies logged in full the model returned exactly 5 sentences, and 55 of the 56 answers held 3 suggestions. The median route latency went from 1.21 s to about 1.3 s. Of the 60 new-prompt requests, 3 timed out at 4 s and 1 failed to connect, all in the first 2 runs. The slowest answered request took 2.54 s and the third run of 20 had no failures, which points to the network and the Provider rather than the longer reply; the client answers such failures on-device (Requirement 16.2).
   - Max_Output_Tokens stays 200. In the same probe, 5 sentences plus the JSON wrapper took 35 to 54 completion tokens (the old prompt: 21 to 43), and every logged reply ended with `finish_reason: 'stop'`. Only 5 sentences near the 200-character cap could be cut off. The cut-off JSON then parses to `[]`, the route answers 200 with no suggestions, and the client falls back on-device (Requirement 16.4).
   - The glossary entry for the Suggestion_Filter named `prompt.ts`; it now names `filter.ts`, the module this design gives it.
+
+
+## Review corrections: initials, request freshness and public endpoint (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+Use the shared phrase index for exact two-letter initials. Join eligible paused tokens before partial/words rules. Snapshot prepared context and capture a request generation at start; increment and abort on update, including context-only changes and text changing away and back. Never deliver or cache an older generation. Missing Origin is forbidden. The live provider check is complete; automated tests use fakes.
+
+Review clarification: `ci` is a prefix of city, so an exact joined phrase-bank match also permits paused initials when no multi-letter token is a known word (`ci hsw`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.

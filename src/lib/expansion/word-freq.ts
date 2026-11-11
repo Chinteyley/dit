@@ -371,7 +371,7 @@ export const WORD_LIST: readonly string[] = Object.freeze([
   'moisture', 'demanded', 'picked', 'eating', 'employ', 'cement', 'validity', 'automobile', 'nose',
   'stomach', 'helping', 'proud', 'anxious', 'repeat', 'appreciate', 'tomorrow', 'listening',
   'okay', 'excited', 'sad', 'angry', 'wash', 'tired', 'fix', 'calm', 'laugh', 'mood', 'grateful',
-  'brush', 'confused', 'missed', 'im', 'glasses', 'worried', 'hungry', 'upset', 'slept', 'lonely',
+  'brush', 'confused', 'missed', 'glasses', 'worried', 'hungry', 'upset', 'slept', 'lonely',
   'shower', 'relaxed', 'blanket', 'bathroom', 'breathe', 'scared', 'toilet', 'uncomfortable',
   'headache', 'cough', 'frustrated', 'embarrassed', 'suction', 'pillow', 'bored', 'hopeful',
   'overwhelmed', 'scratch', 'wipe', 'cant', 'thirsty', 'tv', 'wheelchair', 'choking', 'hurts',
