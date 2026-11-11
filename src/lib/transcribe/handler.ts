@@ -6,10 +6,9 @@ import { checkOrigin, clientKey, jsonResponse, readBodyCapped, type ExpandDeps }
 
 export const AUDIO_LIMIT_BYTES = 1_048_576;
 export const TRANSCRIBE_TIMEOUT_MS = 15_000;
-// Fireworks deprecated audio inference on 2026-06-10. Kept configurable for an active
-// OpenAI-compatible endpoint; the legacy default currently rejects the configured key.
-export const TRANSCRIBE_BASE_URL = 'https://audio-prod.api.fireworks.ai/v1';
-export const TRANSCRIBE_MODEL = 'whisper-v3-turbo';
+// Groq's OpenAI-compatible speech API; Fireworks retired audio inference on 2026-06-10.
+export const TRANSCRIBE_BASE_URL = 'https://api.groq.com/openai/v1';
+export const TRANSCRIBE_MODEL = 'whisper-large-v3-turbo';
 const Reply = z.object({ text: z.string().max(16_384) });
 const AUDIO_TYPES: Readonly<Record<string, string>> = {
   'audio/wav': 'wav',

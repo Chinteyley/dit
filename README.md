@@ -62,9 +62,9 @@ All environment values are optional and server-only. Copy `.env.example` to `.en
 | --- | --- | --- |
 | `DIT_LLM_API_KEY` | none | Turns on server expansion. Without it, `/api/expand` answers 503 and the on-device expander answers instead. |
 | `DIT_LLM_BASE_URL` | `https://api.fireworks.ai/inference/v1` | Any OpenAI-compatible chat-completions endpoint. |
-| `DIT_TRANSCRIBE_API_KEY` | `DIT_LLM_API_KEY` | Server-only transcription key; use a separate provider key when overriding the speech endpoint. |
-| `DIT_TRANSCRIBE_BASE_URL` | `https://audio-prod.api.fireworks.ai/v1` | Legacy Fireworks audio endpoint (deprecated); recommended override: `https://api.groq.com/openai/v1`. |
-| `DIT_TRANSCRIBE_MODEL` | `whisper-v3-turbo` | For the Groq override, set `whisper-large-v3-turbo`. |
+| `DIT_TRANSCRIBE_API_KEY` | none | Server-only speech-to-text key for Listen's fallback (Groq by default). Without it, Listen works only in browsers that transcribe themselves (Chrome, Edge, Safari). |
+| `DIT_TRANSCRIBE_BASE_URL` | `https://api.groq.com/openai/v1` | Any OpenAI-compatible `/audio/transcriptions` endpoint. |
+| `DIT_TRANSCRIBE_MODEL` | `whisper-large-v3-turbo` | The speech model ID. |
 | `DIT_MODEL` | `accounts/fireworks/models/deepseek-v4p1-flash-1017` | The model ID. |
 
 With no key, or with no network, the app still works fully. Each set of suggestions is labelled "Source: AI" or "Source: On-device", so you always know which one answered.
@@ -81,7 +81,7 @@ How the expansion call works:
 
 - The `/api/expand` rate limit lives in the memory of each server instance. On Vercel, separate instances do not share their counts, and a cold start resets them. It stops casual abuse, not a determined attacker.
 - Listen uses Web Speech when available and automatically falls back to microphone capture and server transcription when that API is absent or its backend fails. Capture needs microphone permission and a secure context (HTTPS or localhost); utterances end after 800 ms of silence or 15 seconds, and the route accepts PCM WAV capped at 1 MiB, 30 seconds and 30 requests per IP per minute.
-- Listen's legacy Fireworks transcription default is unavailable: [Fireworks deprecated audio inference on 2026-06-10](https://docs.fireworks.ai/updates/changelog#audio-inference-and-image-generation-deprecation); the 2026-11-11 live check returned 401 from the audio host and 503 from the former turbo host. Configure the three `DIT_TRANSCRIBE_*` values for an active provider. [Groq's current speech API](https://console.groq.com/docs/speech-to-text) supports the override above; enable Zero Data Retention in its [Data Controls](https://console.groq.com/docs/your-data). No successful live transcription has been verified with a replacement key.
+- Listen's server fallback uses [Groq's speech-to-text API](https://console.groq.com/docs/speech-to-text) (`whisper-large-v3-turbo`) because [Fireworks retired audio inference on 2026-06-10](https://docs.fireworks.ai/updates/changelog#audio-inference-and-image-generation-deprecation). Verified live on 2026-11-11: a spoken "Do you need anything" came back as "Do you need anything?" in about 0.6 s. Turn on Zero Data Retention in Groq's [Data Controls](https://console.groq.com/docs/your-data).
 
 ## Privacy
 
@@ -90,7 +90,7 @@ How the expansion call works:
 - Camera frames for blink input are processed on the device and never leave it. The camera starts only when the partner turns it on.
 - Only the typed text and the last 10 conversation turns go to `/api/expand`, and the route logs only the status code and latency, never the text.
 - The MediaPipe files and the font (Atkinson Hyperlegible Next, through `next/font`) are served from this app. MediaPipe's built-in usage telemetry is switched off, and every page has a `Content-Security-Policy: connect-src 'self'` header, so the browser blocks requests to other sites.
-- Listen is off by default. Web Speech may send microphone audio to the browser vendor (Google in Chrome); its fallback sends partner audio to this server and the configured transcription provider only while Listen is on, pauses capture during Dit's own speech, and stores or logs neither audio nor transcripts on the server ([Fireworks zero data retention](https://docs.fireworks.ai/guides/security_compliance/data_handling); other providers have their own policies).
+- Listen is off by default. Web Speech may send microphone audio to the browser vendor (Google in Chrome); its fallback sends partner audio to this server and the configured transcription provider only while Listen is on, pauses capture during Dit's own speech, and stores or logs neither audio nor transcripts on the server (see the provider's data policy; Groq offers Zero Data Retention).
 
 ## Credits
 

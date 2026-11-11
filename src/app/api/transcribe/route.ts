@@ -7,7 +7,8 @@ const rateLimiter = createRateLimiter({ limit: 30, windowMs: 60_000 });
 export async function POST(request: Request): Promise<Response> {
   return handleTranscribe(request, {
     env: {
-      apiKey: process.env.DIT_TRANSCRIBE_API_KEY || process.env.DIT_LLM_API_KEY,
+      // Its own key only: the chat key belongs to another provider and must not be sent here.
+      apiKey: process.env.DIT_TRANSCRIBE_API_KEY,
       baseUrl: process.env.DIT_TRANSCRIBE_BASE_URL,
       model: process.env.DIT_TRANSCRIBE_MODEL,
     },
