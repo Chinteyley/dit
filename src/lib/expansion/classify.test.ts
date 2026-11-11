@@ -79,5 +79,7 @@ describe('classify', () => {
     expect(classify('ok thanks').kind).toBe('words');
     expect(classify('my knee').kind).toBe('words');
     expect(classify('so sore').kind).toBe('words');
+    expect(classify('hello').kind).toBe('words');
+    expect(classify('i threw up').kind).toBe('words');
   });
 });

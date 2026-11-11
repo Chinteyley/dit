@@ -25,7 +25,8 @@
  *    words such as "mom come" or "ok thanks" are read as words, not initials: mom, dad, hi, hey,
  *    bye, ok.
  * 4. Added short care words the corpus lacks, so "i pee" or "a rash" read as words: pee, peed,
- *    puke, puked, poop, rash, nap, fan, meds, sore, burp.
+ *    puke, puked, poop, rash, nap, fan, meds, sore, burp, hello, ouch, hug, kiss, ate, threw,
+ *    vomit, vomited, ache, pill, pills, sleepy.
  */
 export const WORD_LIST: readonly string[] = Object.freeze([
   'the', 'of', 'and', 'to', 'in', 'a', 'is', 'that', 'for', 'as', 'it', 'be', 'by', 'with', 'was',
@@ -383,4 +384,5 @@ export const WORD_LIST: readonly string[] = Object.freeze([
   'dizzy', 'itchy', 'itch', 'didnt', 'dont', 'youre', 'joking', 'makes', 'goodnight', 'friends',
   'visitors', 'mom', 'dad', 'hi', 'hey', 'bye', 'ok',
   'pee', 'peed', 'puke', 'puked', 'poop', 'rash', 'nap', 'fan', 'meds', 'sore', 'burp',
+  'hello', 'ouch', 'hug', 'kiss', 'ate', 'threw', 'vomit', 'vomited', 'ache', 'pill', 'pills', 'sleepy',
 ]);
