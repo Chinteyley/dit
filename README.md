@@ -2,7 +2,7 @@
 
 Morse code, resurrected as a voice. One-switch AAC with LLM sentence expansion. Kiroween 2026, Resurrection category.
 
-**Try it:** https://dit-lake.vercel.app (works in a desktop or tablet browser; Space or a tap keys Morse)
+**Try it:** https://dit.ctey.dev (works in a desktop or tablet browser; Space or a tap keys Morse)
 
 ## What Dit is
 
