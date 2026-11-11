@@ -65,6 +65,10 @@ describe('classify', () => {
     expect(classify('m mid')).toMatchObject({ kind: 'initials', initials: 'mmid' });
   });
 
+  it('keeps half-typed paused initials that start a phrase as initials (Req 20.5)', () => {
+    expect(classify('i ntut')).toMatchObject({ kind: 'initials', initials: 'intut' });
+  });
+
   it('keeps everyday word input with a 3+ letter known word as words (Req 20.5)', () => {
     expect(classify('mom come').kind).toBe('words');
     expect(classify('ok thanks').kind).toBe('words');

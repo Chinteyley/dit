@@ -40,7 +40,9 @@ export function classify(text: string): InputClassification {
     !leadingWords ||
     tokens.every((token) => token.length === 1) ||
     // A vowel before the last letter reads as a real word the list lacks ("knee", "meds"), not initials.
-    tokens.some((token) => token.length > 1 && !isKnownWord(token) && !isProperPrefixOfSomeWord(token) && !/[aeiou]/.test(token.slice(0, -1))) ||
+    // A phrase-bank initials prefix keeps half-typed initials ("i ntut") eligible despite the vowel.
+    tokens.some((token) => token.length > 1 && !isKnownWord(token) && !isProperPrefixOfSomeWord(token) &&
+      (!/[aeiou]/.test(token.slice(0, -1)) || PHRASE_INDEX.some((phrase) => phrase.initials.startsWith(joined)))) ||
     PHRASE_INDEX.some((phrase) => phrase.initials === joined);
   // An exact phrase-bank match outranks the known-word veto unless every token is a word ("i n two").
   const phraseMatch = !tokens.every(isKnownWord) && PHRASE_INDEX.some((phrase) => phrase.initials === joined);

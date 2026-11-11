@@ -23,7 +23,8 @@ function refClassification(tokens: readonly string[]): { kind: InputClassificati
   const abbreviated =
     !leadingWords ||
     tokens.every((token) => token.length === 1) ||
-    tokens.some((token) => token.length > 1 && !known(token) && !prefix(token) && !/[aeiou]/.test(token.slice(0, -1))) ||
+    tokens.some((token) => token.length > 1 && !known(token) && !prefix(token) &&
+      (!/[aeiou]/.test(token.slice(0, -1)) || PHRASE_BANK.some((p) => initialsOf(p.text).startsWith(joined)))) ||
     PHRASE_BANK.some((p) => initialsOf(p.text) === joined);
   const phraseMatch = !tokens.every(known) && PHRASE_BANK.some((p) => initialsOf(p.text) === joined);
   if (tokens.length >= 2 && joined.length <= 12 && tokens.every((token) => /^[a-z]+$/.test(token)) &&
