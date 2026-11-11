@@ -50,3 +50,28 @@ describe('Onboarding controller properties', () => {
     );
   });
 });
+
+// Feature: onboarding-and-safety, review 24.3: finished input choice determines the switch source.
+it('disables and clears switch input when finishing or restoring another input', () => {
+  fc.assert(fc.property(fc.constantFrom('key-tap', 'blink'), (choice) => {
+    const clock = createManualClock(0);
+    const backend = memoryBackend();
+    const sources = createFakeSourceControl();
+    let cleared = 0;
+    const learner = { ...createFakeSwitchLearner(), clear: () => { cleared += 1; return { ok: true, value: undefined } as const; } };
+    const controller = createOnboardingController({ backend: () => backend, clock: () => clock.now, scheduler: () => createManualScheduler(clock.now), createEngine: createFakeEngineFactory().create, alarm: { start() {} }, router: { onOnboardingOpenChange() {} } });
+    const api = { setInitialEstimates() {}, focusKeyingSurface() {}, focusSelectedChoice() {}, settings: () => DEFAULT_SETTINGS, sources, learner, pendingSince: () => null };
+    controller.attach(api);
+    controller.dispatch({ type: 'choose', choice });
+    if (choice === 'blink') { controller.dispatch({ type: 'camera-on' }); controller.dispatch({ type: 'blink-status', status: 'active' }); }
+    for (const type of ['continue', 'use-default', 'continue', 'start'] as const) controller.dispatch({ type });
+    expect(sources.enabled().switch).toBe(false);
+    expect(cleared).toBe(1);
+    expect(controller.isOpen()).toBe(false);
+    const restoredSources = createFakeSourceControl();
+    const restored = createOnboardingController({ backend: () => backend, clock: () => clock.now, scheduler: () => createManualScheduler(clock.now), createEngine: createFakeEngineFactory().create, alarm: { start() {} }, router: { onOnboardingOpenChange() {} } });
+    restored.attach({ ...api, sources: restoredSources });
+    expect(restoredSources.enabled().switch).toBe(false);
+    expect(cleared).toBe(2);
+  }), { numRuns: PROP_RUNS });
+});

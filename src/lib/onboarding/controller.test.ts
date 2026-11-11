@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ENABLED_SOURCES, DEFAULT_SETTINGS, engineConfigOf, type KeyValueBackend } from '@/lib/conversation';
 import { throwingBackend } from '@/lib/conversation/test-support';
@@ -164,7 +165,7 @@ describe('load decision', () => {
     const r = rig({ stored: { ...COMPLETE, inputChoice: 'blink' } });
     r.attach();
     expect(r.controller.isOpen()).toBe(false);
-    expect(r.sources.calls).toEqual([]);
+    expect(r.sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }]);
     expect(r.controller.getView().blinkResume).toEqual({ visible: true, reason: null });
   });
 });
@@ -386,9 +387,9 @@ describe('Run setup again and Cancel setup', () => {
     r.controller.runSetupAgain();
     expect(r.state()).toMatchObject({ selected: 'blink', inputChoice: 'blink' });
     r.act({ type: 'choose', choice: 'key-tap' }); // stops the camera
-    expect(sources.calls).toEqual([{ kind: 'stopBlink' }]);
+    expect(sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }, { kind: 'stopBlink' }]);
     r.act({ type: 'cancel' });
-    expect(sources.calls.at(-1)).toEqual({ kind: 'restore', flags: { ...DEFAULT_ENABLED_SOURCES, blink: true } });
+    expect(sources.calls.at(-1)).toEqual({ kind: 'restore', flags: { ...DEFAULT_ENABLED_SOURCES, switch: false, blink: true } });
     expect(r.controller.isOpen()).toBe(false);
     expect(r.log.slice(estimateCalls)).toEqual(['focus-choice', 'focus-surface']);
     expect(writesOf(r.backend)).toEqual([]);
@@ -408,11 +409,13 @@ describe('Switch and Blink choices', () => {
     const learner = createFakeSwitchLearner();
     const r = rig({ learner });
     r.attach();
+    r.sources.setEnabled('switch', false);
     r.act({ type: 'choose', choice: 'switch' });
     expect(learner.arms).toBe(1);
     learner.resolve(ok('KeyF'));
     await settle();
     expect(r.state()).toMatchObject({ inputChoice: 'switch', switchPhase: { kind: 'learned', code: 'KeyF' } });
+    expect(r.sources.enabled().switch).toBe(true);
   });
 
   it('drops the result of a learner arm that was cancelled (Requirement 13.3)', async () => {
@@ -452,7 +455,7 @@ describe('Switch and Blink choices', () => {
     const r = rig({ stored: { ...COMPLETE, inputChoice: 'blink' } });
     r.attach();
     r.controller.turnOnBlinkCamera();
-    expect(r.sources.calls).toEqual([{ kind: 'startBlink' }]);
+    expect(r.sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }, { kind: 'startBlink' }]);
     const cases = [
       ['starting', false, null],
       ['active', false, null],
@@ -494,4 +497,21 @@ describe('Switch and Blink choices', () => {
     const view = r.controller.getView();
     expect(r.controller.getView()).toBe(view);
   });
+});
+
+// Feature: onboarding-and-safety, review 24.4: cancellation rolls back accepted calibration.
+it('restores the previous calibration after accepting a new speed then cancelling', () => {
+  fc.assert(fc.property(fc.integer({ min: 200, max: 400 }), (dot) => {
+    const r = rig({ stored: COMPLETE });
+    // Adaptation since the record was saved must survive cancellation too.
+    r.api.getEstimates = () => ({ dotEstimate: 90, dashEstimate: 270 });
+    r.attach();
+    r.controller.runSetupAgain();
+    r.act({ type: 'continue' }); r.practice([dot, dot, dot, dot * 3, dot * 3]);
+    r.act({ type: 'use-this-speed' });
+    expect(r.log.at(-1)).toBe(`estimates:${JSON.stringify({ dotEstimate: dot, dashEstimate: dot * 3 })}`);
+    r.act({ type: 'cancel' });
+    expect(r.log.at(-2)).toBe('estimates:{"dotEstimate":90,"dashEstimate":270}');
+    expect(writesOf(r.backend)).toEqual([]);
+  }), { numRuns: 200 });
 });

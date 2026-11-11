@@ -2,13 +2,13 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { createRef } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { createCheatSheetStore, type CheatSheetContext } from '@/lib/onboarding';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildCheatSheetModel, entryAccessibleText, createCheatSheetStore, type CheatSheetContext } from '@/lib/onboarding';
 import { CheatSheet } from './CheatSheet';
 import { createSessionRig, FakeKeyingSurface, KEYING_SURFACE } from './onboarding.test-support';
 import { SessionApiContext } from './session-api-context';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 function renderSheet() {
   const ctx: { -readonly [K in keyof CheatSheetContext]: CheatSheetContext[K] } = { onboardingOpen: false, alarmActive: false };
@@ -42,26 +42,19 @@ describe('CheatSheet', () => {
     expect(screen.queryByRole('region', { name: 'All codes' })).toBeNull();
   });
 
-  it('lists every character in Letters, Digits and Punctuation, then the 4 commands, each read with its code', () => {
+  it('pages through every character and command with six dots alone', () => {
     const { store } = renderSheet();
     act(() => store.dispatch({ type: 'partner-open' }));
-    const sheet = region();
-    expect(within(sheet).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
-      'Letters',
-      'Digits',
-      'Punctuation',
-      'Commands',
-    ]);
-    const lists = within(sheet).getAllByRole('list');
-    expect(lists.map((list) => within(list).getAllByRole('listitem').length)).toEqual([26, 10, 13, 4]);
-    expect(within(sheet).getByText('A dot dash')).toBeDefined();
-    expect(within(sheet).getByText('0 dash dash dash dash dash')).toBeDefined();
-    expect(within(sheet).getByText('period dot dash dot dash dot dash')).toBeDefined();
-    expect(within(sheet).getByText('Help alarm dot dot dot dash dash dash dot dot dot')).toBeDefined();
-    expect(within(sheet).getByText('Speak dot dash dot dash dot')).toBeDefined();
-    // Glyphs are hidden; each code is read once, through its text.
-    expect(within(sheet).queryAllByRole('img')).toHaveLength(0);
-    expect(within(sheet).queryByText(/Not a code:/)).toBeNull();
+    const allEntries = buildCheatSheetModel().flatMap((group) => group.entries);
+    const seen = new Set<string>();
+    for (let page = 0; page < Math.ceil(allEntries.length / 8); page += 1) {
+      const sheet = region();
+      expect(within(sheet).getAllByRole('listitem').length).toBeLessThanOrEqual(8);
+      for (const entry of allEntries) if (within(sheet).queryByText(entryAccessibleText(entry))) seen.add(entry.code);
+      act(() => store.dispatch({ type: 'unknown', pattern: '......' }));
+    }
+    expect(seen.size).toBe(allEntries.length);
+    expect(within(region()).getByText('A dot dash')).toBeDefined();
   });
 
   it('shows the unknown pattern under "Not a code:" only for an unknown opening, and the newest one', () => {
@@ -122,7 +115,7 @@ describe('CheatSheet', () => {
     expect(session.focusKeyingSurface).not.toHaveBeenCalled();
   });
 
-  it('a committed character closes an unknown sheet and leaves a partner sheet open', () => {
+  it('a committed character or command closes either opening', () => {
     const { store, session } = renderSheet();
     act(() => store.dispatch({ type: 'unknown', pattern: '......' }));
     act(() => session.commitChar('e'));
@@ -130,8 +123,8 @@ describe('CheatSheet', () => {
     // Focus was not inside the sheet, so it stays where it was.
     expect(session.focusKeyingSurface).not.toHaveBeenCalled();
     act(() => store.dispatch({ type: 'partner-open' }));
-    act(() => session.commitChar('e'));
-    expect(region()).toBeDefined();
+    act(() => session.commitChar('next'));
+    expect(screen.queryByRole('region', { name: 'All codes' })).toBeNull();
   });
 
   it('moves focus to the Keying_Surface when a committed character closes the sheet it was in', () => {
@@ -151,4 +144,23 @@ describe('CheatSheet', () => {
     const style = region().style;
     expect([style.top, style.left, style.width, style.height]).toEqual(['0px', '8px', '1016px', '768px']);
   });
+});
+
+it.each([[1280, 800], [820, 1180], [393, 852]])('makes every code reachable by single-input paging at %i×%i', (width, height) => {
+  vi.stubGlobal('innerWidth', width);
+  vi.stubGlobal('innerHeight', height);
+  const { store } = renderSheet();
+  act(() => store.dispatch({ type: 'partner-open' }));
+  const entries = buildCheatSheetModel().flatMap((group) => group.entries);
+  const seen = new Set<string>();
+  const pagesText = within(region()).getByText(/^Page 1 of/).textContent ?? '';
+  const pages = Number(/of (\d+)/.exec(pagesText)?.[1]);
+  expect(pages).toBeGreaterThan(1);
+  for (let i = 0; i < pages; i += 1) {
+    expect(within(region()).getAllByRole('listitem').length).toBeLessThanOrEqual(8);
+    for (const entry of entries) if (within(region()).queryByText(entryAccessibleText(entry))) seen.add(entry.code);
+    act(() => store.dispatch({ type: 'unknown', pattern: '......' }));
+  }
+  expect(seen.size).toBe(entries.length);
+  expect(within(region()).getByText(/^Page 1 of/)).toBeDefined();
 });

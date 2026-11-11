@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { trimWhitespace } from '@/lib/expansion';
 import { SUPPORTED_CHARACTERS, type EngineEvent } from '@/lib/morse';
-import { reduce, trimmedText } from './session';
+import { INITIAL_SESSION, reduce, trimmedText } from './session';
 import {
   PROP_RUNS,
   arbPattern,
@@ -98,6 +98,9 @@ function engineModel(s: SessionState, event: EngineEvent): { state: SessionState
     case 'char':
       return { state: s.currentText.length < TEXT_MAX ? retext(s.currentText + event.char) : emptied, effects: [] };
     case 'space': {
+      if (/(^| )sos$/.test(trimmedText(s))) {
+        return { state: cleared({ ...emptied, currentText: trimmedText(s).slice(0, -3) }), effects: [{ type: 'alarm' }] };
+      }
       const t = s.currentText;
       const appends = t !== '' && !t.endsWith(' ') && t.length < TEXT_MAX;
       return { state: appends ? retext(`${t} `) : emptied, effects: [] };
@@ -275,7 +278,9 @@ describe('Session_Reducer properties', { timeout: 60_000 }, () => {
       fc.property(arbState(), op, (s, o) => {
         if (o.kind === 'speak') {
           const { state: next, effects } = reduce(s, SPEAK);
-          if (s.highlight !== null) {
+          if (/(^| )sos$/.test(trimmedText(s))) {
+            expect(effects).toEqual([{ type: 'alarm' }]);
+          } else if (s.highlight !== null) {
             expect(effects).toEqual([{ type: 'speak', sentence: s.suggestions[s.highlight] }, RESET]);
           } else if (trimmedText(s) !== '') {
             expect(effects).toEqual([{ type: 'speak', sentence: trimmedText(s) }, RESET]);
@@ -300,7 +305,7 @@ describe('Session_Reducer properties', { timeout: 60_000 }, () => {
   // Feature: conversation-ui, Property 8: Speak clears state
   it('P8 speak clears state', () => {
     const anyState = fc.oneof(arbState(), arbStateDirect({ turns: arbTurns(fc.constant(HISTORY_CAP)) }));
-    const speakCase = anyState.map((s) => {
+    const speakCase = anyState.filter((s) => !/(^| )sos$/.test(trimmedText(s))).map((s) => {
       const state = s.highlight === null && trimmedText(s) === '' ? { ...s, currentText: 'ok' } : s;
       const sentence = state.highlight === null ? trimmedText(state) : (state.suggestions[state.highlight] ?? '');
       return { s: state, action: SPEAK, sentence };
@@ -482,4 +487,18 @@ describe('Session_Reducer properties', { timeout: 60_000 }, () => {
       { numRuns: PROP_RUNS },
     );
   });
+});
+
+// Feature: conversation-ui, review 26.2: standalone typed SOS is reserved at word boundaries.
+it('alarms on a final sos word at a space or speak, preserving preceding text', () => {
+  fc.assert(fc.property(fc.constantFrom('', 'please ', 'help me '), fc.boolean(), (prefix, speak) => {
+    const state = { ...INITIAL_SESSION, currentText: `${prefix}sos`, suggestions: ['Unrelated.'], highlight: 0 };
+    const result = reduce(state, speak ? SPEAK : SPACE);
+    expect(result.effects).toEqual([{ type: 'alarm' }]);
+    expect(result.state.currentText).toBe(prefix);
+    expect(result.state.suggestions).toEqual([]);
+    for (const text of ['sosx', 'xsos', 'sos help']) {
+      expect(reduce({ ...INITIAL_SESSION, currentText: text }, speak ? SPEAK : SPACE).effects).not.toContainEqual({ type: 'alarm' });
+    }
+  }), { numRuns: PROP_RUNS });
 });

@@ -32,6 +32,8 @@ export const GUARD_PENDING_RETRY_MS = 50;
 export interface OnboardingSessionApi {
   /** SessionController.setInitialEstimates: the only way estimates reach the Session_Engine (15.9). */
   setInitialEstimates(e: Estimates | null): void;
+  /** Current adapted session timing; absent in stand-alone hosts without a session engine. */
+  getEstimates?(): Estimates | null;
   /** Focuses the Keying_Surface on the next animation frame. */
   focusKeyingSurface(): void;
   /** Focuses the selected Input_Step tile on the next animation frame ("Run setup again", 11.7). */
@@ -92,6 +94,8 @@ const HIDDEN: BlinkResume = Object.freeze({ visible: false, reason: null });
 const SHOWN: BlinkResume = Object.freeze({ visible: true, reason: null });
 const FOCUS_SELECTED: OnboardingEffect = Object.freeze({ type: 'focus-selected-choice' });
 
+const isSpeak = (event: EngineEvent): boolean => event.type === 'command' && event.command === 'speak';
+
 const isSos = (event: EngineEvent): boolean => event.type === 'command' && event.command === 'sos';
 
 function attempt<T>(fn: () => T, fallback: T): T {
@@ -113,6 +117,8 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
   let sourceSnapshot: EnabledSources | null = null;
   let inputChoiceInEffect: InputChoice | null = null;
   let estimatesInEffect: Estimates | null = null;
+  let estimatesSnapshot: Estimates | null = null;
+  let confirmationPressed = false;
   let saveFailed = false;
   /** Drops a learner result whose arm() was cancelled or replaced. */
   let learnAttempt = 0;
@@ -255,7 +261,19 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       raiseAlarm();
       return;
     }
+    acceptCommitted(events);
     rescheduleGuard(); // other Engine_Events are discarded (12.7)
+  };
+
+  /** Wait for a committed pattern so confirmation never interrupts a continuous SOS. */
+  const acceptCommitted = (events: readonly EngineEvent[]): void => {
+    const s = state;
+    const committed = events.some((event) => event.type === 'char' || event.type === 'command' || event.type === 'unknown');
+    if (s?.step === 'practice' && s.durations.length >= 5 && (events.some(isSpeak) || (confirmationPressed && committed))) {
+      controller.dispatch({ type: s.result.kind === 'measured' ? 'use-this-speed' : 'continue' });
+    } else if (s?.step === 'legend' && events.some(isSpeak)) {
+      controller.dispatch({ type: 'start' });
+    }
   };
 
   // ---- Opening and closing ----
@@ -263,6 +281,8 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
   const open = (initial: OnboardingState): void => {
     const current = api;
     sourceSnapshot = current === null ? null : attempt(() => current.sources.enabled(), null);
+    estimatesSnapshot = current?.getEstimates?.() ?? estimatesInEffect;
+    estimatesInEffect = estimatesSnapshot;
     guard = buildGuard();
     state = initial;
     tellRouter(); // 12.10: the session discards its buffered input
@@ -291,6 +311,7 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       learner === null ? Promise.resolve(unavailable) : attempt(() => learner.arm(), Promise.resolve(unavailable));
     const deliver = (result: Result<string, LearnError>): void => {
       if (token !== learnAttempt) return; // cancelled or replaced
+      if (result.ok) attempt(() => api?.sources.setEnabled('switch', true), undefined);
       controller.dispatch({
         type: 'switch-result',
         result: result.ok ? { ok: true, code: result.value } : { ok: false, message: result.error.message },
@@ -318,6 +339,8 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       case 'apply-estimates':
         estimatesInEffect = effect.estimates;
         attempt(() => current?.setInitialEstimates(effect.estimates), undefined);
+        cancelGuardTimer();
+        guard = buildGuard();
         return;
       case 'focus-keying-surface':
         attempt(() => current?.focusKeyingSurface(), undefined);
@@ -335,10 +358,18 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
         // 16.6: the choice and estimates stay in effect for this page load either way.
         saveFailed = !written.ok;
         inputChoiceInEffect = effect.report.inputChoice;
+        if (inputChoiceInEffect !== 'switch') {
+          attempt(() => current?.sources.setEnabled('switch', false), undefined);
+          attempt(() => current?.learner?.clear(), undefined);
+        }
         close();
         return;
       }
       case 'cancel': {
+        if (estimatesInEffect !== estimatesSnapshot) {
+          estimatesInEffect = estimatesSnapshot;
+          attempt(() => current?.setInitialEstimates(estimatesSnapshot), undefined);
+        }
         const snapshot = sourceSnapshot;
         if (snapshot !== null) attempt(() => current?.sources.restore(snapshot), undefined);
         close();
@@ -367,6 +398,10 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
           // 11.3, 11.4: closed, and the stored estimates applied exactly once.
           inputChoiceInEffect = outcome.record.inputChoice;
           estimatesInEffect = outcome.record.estimates;
+          if (inputChoiceInEffect !== 'switch') {
+            attempt(() => next.sources.setEnabled('switch', false), undefined);
+            attempt(() => next.learner?.clear(), undefined);
+          }
           attempt(() => next.setInitialEstimates(outcome.record.estimates), undefined);
         } else {
           // 11.2 (missing, invalid or incomplete) and 11.5 (read error): open, estimates untouched.
@@ -391,13 +426,16 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       if (!isOpen()) return;
       // 12.3: the Guard_Engine sees the press before the current step does.
       const g = guardForPress();
-      const events = g === null ? [] : attempt(() => (e.kind === 'down' ? g.press(e.t) : g.release(e.t)), []);
+      const t = e.source === 'blink' ? Math.max(e.t, g?.snapshot().lastT ?? e.t) : e.t;
+      const events = g === null ? [] : attempt(() => (e.kind === 'down' ? g.press(t) : g.release(t)), []);
       if (events.some(isSos)) {
         // 7.6: synchronously, before the next press is routed. The press itself is the start of
         // the alarm, so the flow keeps its state as it was (2.11, 12.6).
         raiseAlarm();
         return;
       }
+      acceptCommitted(events);
+      if (state?.step === 'practice' && state.durations.length >= 5 && e.kind === 'up') confirmationPressed = true;
       controller.dispatch({ type: 'press', kind: e.kind, t: e.t });
       rescheduleGuard();
     },
@@ -408,6 +446,7 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       const next = onboardingStep(prev, a);
       if (next === prev) return;
       state = next;
+      if (next.step !== 'practice' || next.durations.length < 5) confirmationPressed = false;
       for (const effect of onboardingEffects(prev, next, a)) runEffect(effect);
       publish();
     },

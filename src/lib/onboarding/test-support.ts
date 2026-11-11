@@ -110,15 +110,18 @@ export function referenceSheet(steps: readonly CheatSheetRunStep[]): readonly Ch
   let open = false;
   let reason: CheatSheetState['reason'] = null;
   let pattern: string | null = null;
+  let page: number | undefined;
   const states: CheatSheetState[] = [];
   const close = (): void => {
     open = false;
     reason = null;
     pattern = null;
+    page = undefined;
   };
   for (const { action, ctx } of steps) {
-    if (!ctx.alarmActive) {
+    if (!ctx.alarmActive || action.type === 'char-committed') {
       if (action.type === 'unknown' && !ctx.onboardingOpen) {
+        if (open && action.pattern === '......') page = (page ?? 0) + 1;
         if (!open) reason = 'unknown';
         open = true;
         pattern = action.pattern;
@@ -126,13 +129,13 @@ export function referenceSheet(steps: readonly CheatSheetRunStep[]): readonly Ch
         if (!open) pattern = null;
         open = true;
         reason = 'partner';
-      } else if (action.type === 'char-committed' && open && reason === 'unknown') {
+      } else if (action.type === 'char-committed' && open) {
         close();
       } else if (action.type === 'close') {
         close();
       }
     }
-    states.push({ open, reason, pattern });
+    states.push({ open, reason, pattern, ...(page === undefined ? {} : { page }) });
   }
   return states;
 }

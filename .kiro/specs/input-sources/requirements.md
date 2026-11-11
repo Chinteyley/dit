@@ -250,3 +250,11 @@ Sources of truth: `docs/BRIEF.md`, `.kiro/steering/product.md`, `.kiro/steering/
 5. FOR ALL sequences of source inputs, WHEN a sequence is fed to an Input_Arbiter, THE Input_Layer SHALL leave the input values unchanged (no mutation of Raw_Down, Raw_Up, Blink_Frame or Clock reading values).
 6. THE Input_Layer SHALL keep all browser API access (DOM event listeners, `getUserMedia`, MediaPipe, `visibilitychange`, `blur`, `performance.now()`) in adapter modules that implement the Press_Source, Clock or Settings_Store interfaces, so that tests can run the pure components with fake sources, a fake Clock and synthetic Blink_Frames without a DOM.
 7. THE Input_Layer SHALL write no key code, pointer coordinate, blendshape score or Press_Event field value to the console, to any logger, or to any network request.
+
+
+## Review corrections: delayed blink frames and permission resume (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+19.1. THE app SHALL satisfy: Clamp blink events to the receiving engine last input time so delayed video timestamps never cause a press/release to be ignored as in the past.
+19.2. THE app SHALL satisfy: Saved blink choice may resume without another partner action only when camera permission is already granted; never request camera access automatically for prompt/denied/unknown permission.

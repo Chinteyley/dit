@@ -24,6 +24,7 @@ import { createExpansionClient, expandOnDevice, type Timers } from '@/lib/expans
 import { err, type Clock, type Unsubscribe } from '@/lib/input';
 import { browserScheduler } from '@/lib/input/browser';
 import { createEngine, type Estimates } from '@/lib/morse';
+import { clearStoredCalibration } from '@/lib/onboarding';
 import { initialListen } from '@/lib/speech';
 import { webSpeechInput, webSpeechOutput } from '@/lib/speech/browser';
 import {
@@ -101,18 +102,25 @@ function createSessionHolder(): SessionHolder {
     partnerLine: (text) => live?.partnerLine(text),
     clearHistory: () => live?.clearHistory(),
     // Before the controller exists nothing can be applied, so nothing is reported as applied.
-    updateSettings: (patch) => (live === null ? err([]) : live.updateSettings(patch)),
+    updateSettings(patch) {
+      if (live === null) return err([]);
+      const before = live.getSnapshot().settings.startingWpm;
+      const result = live.updateSettings(patch);
+      if (result.ok && result.value.startingWpm !== before) estimates = { value: null };
+      return result;
+    },
     updateInputSettings: (input) => live?.updateInputSettings(input),
     setInitialEstimates(value) {
       // Onboarding may call this from a child mount effect, which runs before the controller exists.
       estimates = { value };
       live?.setInitialEstimates(value);
     },
+    getEstimates: () => live?.getEstimates() ?? estimates?.value ?? null,
     setListen: (on) => live?.setListen(on),
     setSourceStatuses: (statuses) => live?.setSourceStatuses(statuses),
     dismissMessage: (id) => live?.dismissMessage(id),
     discardInput: () => live?.discardInput(),
-    onCharCommitted(listener) {
+    onCodeCommitted(listener) {
       charListeners.add(listener);
       return () => {
         charListeners.delete(listener);
@@ -135,7 +143,7 @@ function createSessionHolder(): SessionHolder {
       live = next;
       detachers = [
         next.subscribe(notify),
-        next.onCharCommitted((char) => {
+        next.onCodeCommitted((char) => {
           for (const listener of [...charListeners]) {
             try {
               listener(char);
@@ -228,6 +236,7 @@ export function useMorseSession(opts: UseMorseSessionOptions): UseMorseSessionRe
       unknownPattern: { handle: (pattern) => latest.current.unknownPattern.handle(pattern) },
       storage,
       persistent,
+      clearCalibration: () => clearStoredCalibration(localStorageBackend()).ok,
     };
     holder.attach(createSessionController(deps));
     return () => holder.detach();

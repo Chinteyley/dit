@@ -32,7 +32,7 @@ describe('OnboardingFlow', () => {
   it.each([
     ['input', [], 'Choose an input', true],
     ['practice', TO_PRACTICE, 'Practice', false],
-    ['legend', TO_LEGEND, 'Commands', true],
+    ['legend', TO_LEGEND, 'Commands', false],
     ['done', TO_DONE, 'Setup done', true],
   ] as const)('gives the %s step one h2, opens modal only for Partner steps, and adds no h1', (_step, actions, heading, modal) => {
     render(
@@ -132,5 +132,16 @@ describe('OnboardingFlow', () => {
     expect(dialog.matches(':modal')).toBe(false);
     expect(dialog.style.top).toBe('0px');
     expect(dialog.style.left).toBe('8px');
+  });
+
+  it('returns focus to the keying surface when a partner accepts calibration into the non-modal legend', async () => {
+    renderOnboarding();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Key or tap' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Use default speed' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('dialog', { name: 'Commands' }).matches(':modal')).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keying surface' }));
   });
 });

@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useContext, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   CANCEL_SETUP_LABEL,
   STEP_HEADINGS,
@@ -10,6 +10,7 @@ import { usePanelPlacement } from '@/hooks/usePanelPlacement';
 import { InputStep } from './InputStep';
 import { LegendStep } from './LegendStep';
 import { PracticeStep } from './PracticeStep';
+import { SessionApiContext } from './session-api-context';
 
 export interface OnboardingFlowProps {
   readonly state: OnboardingState;
@@ -35,21 +36,23 @@ interface Live {
 
 /**
  * The Onboarding_Flow container (onboarding-and-safety Requirements 11.8, 14.2 and 18): one
- * <dialog> for the whole flow. The Input_Step, Legend_Step and Done are modal (showModal), so the
- * Partner's focus stays in the flow; the Practice_Step reopens it with show() as a panel in the
+ * <dialog> for the whole flow. The Input_Step and Done are modal (showModal), so the
+ * Partner's focus stays in the flow; the Practice_Step and Legend_Step reopen it with show() as a panel in the
  * largest band beside the Keying_Surface, which stays uncovered and pressable. Each step has one
  * h2, and one polite live region, kept for the life of the flow, says the new heading on a step
  * change and "N of 5" when the practice count changes, never anything per press. Escape never
  * closes a first-run flow; for "Run setup again" it is "Cancel setup".
  */
 export function OnboardingFlow({ state, dispatch, startingWpm, id }: OnboardingFlowProps) {
+  const { focusKeyingSurface } = useContext(SessionApiContext);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   /** close() calls made here when switching between modal and non-modal; not a close request. */
   const ownCloses = useRef(0);
   const step = shownStep(state);
   const practice = step === 'practice';
-  const rect = usePanelPlacement(practice, PRACTICE_MIN);
+  const pressable = practice || step === 'legend';
+  const rect = usePanelPlacement(pressable, PRACTICE_MIN);
   const rerun = state.origin === 'rerun';
 
   // The live text follows the step and the practice count (18.3), adjusted while rendering.
@@ -64,20 +67,22 @@ export function OnboardingFlow({ state, dispatch, startingWpm, id }: OnboardingF
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
     if (dialog === null || step === null) return;
-    const wantModal = step !== 'practice';
-    if (dialog.open && dialog.matches(':modal') === wantModal) return;
-    if (dialog.open) {
-      ownCloses.current += 1;
-      dialog.close();
+    const wantModal = step !== 'practice' && step !== 'legend';
+    if (!dialog.open || dialog.matches(':modal') !== wantModal) {
+      if (dialog.open) {
+        ownCloses.current += 1;
+        dialog.close();
+      }
+      if (wantModal) dialog.showModal();
+      else dialog.show();
     }
-    if (wantModal) dialog.showModal();
-    else dialog.show();
-  }, [step]);
+    if (step === 'legend') focusKeyingSurface();
+  }, [step, focusKeyingSurface]);
 
   if (step === null) return null;
 
   const placed =
-    practice && rect !== null ? { top: rect.top, left: rect.left, width: rect.width, maxHeight: rect.height } : undefined;
+    pressable && rect !== null ? { top: rect.top, left: rect.left, width: rect.width, maxHeight: rect.height } : undefined;
 
   return (
     <dialog
@@ -101,19 +106,19 @@ export function OnboardingFlow({ state, dispatch, startingWpm, id }: OnboardingF
         }
         const dialog = dialogRef.current;
         if (dialog === null || dialog.open) return;
-        if (practice) dialog.show();
+        if (pressable) dialog.show();
         else dialog.showModal();
       }}
       style={placed}
       className={
-        practice
+        pressable
           ? 'pointer-events-none fixed m-0 max-w-none overflow-hidden bg-transparent p-4 text-text'
           : 'm-auto max-h-dvh w-[min(100%,42rem)] max-w-none overflow-y-auto bg-transparent p-4 text-text backdrop:bg-bg/85'
       }
     >
       <div
         className={`pointer-events-auto mx-auto flex w-full max-w-[40rem] flex-col gap-7 rounded-3xl bg-surface p-6 sm:p-8 ${
-          practice ? 'max-h-full overflow-y-auto border border-border' : ''
+          pressable ? 'max-h-full overflow-y-auto border border-border' : ''
         }`}
       >
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">

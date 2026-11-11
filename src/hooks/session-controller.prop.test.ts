@@ -14,7 +14,9 @@ import {
   type NearMiss,
 } from '@/lib/conversation/test-support';
 import type { PressEvent } from '@/lib/input';
-import type { EngineEvent } from '@/lib/morse';
+import { ONBOARDING_KEY, readOnboardingRecord } from '@/lib/onboarding';
+import { createEngine, type EngineEvent } from '@/lib/morse';
+import { engineOrDefault } from './session-controller';
 import { PENDING_RETRY_MS } from './session-controller';
 import { createControllerRig, type ControllerRig } from './session-controller.test-support';
 
@@ -389,12 +391,10 @@ function applyClientOp(r: ControllerRig, op: ClientOp): void {
   }
 }
 
-function expectedCalls(before: SessionState, after: SessionState): { text: string; context: unknown }[] {
+function expectedCalls(before: SessionState, after: SessionState, clear: boolean): { text: string; context: unknown }[] {
   const was = trimmedText(before);
   const now = trimmedText(after);
-  const last = after.turns.at(-1);
-  const partnerAppended = last !== undefined && last.id !== before.turns.at(-1)?.id && last.role === 'partner';
-  if (now !== was || (partnerAppended && now !== '')) {
+  if (now !== was || after.turns !== before.turns || clear) {
     return [{ text: now, context: contextWindow(after.turns).map((turn) => ({ role: turn.role, text: turn.text })) }];
   }
   return [];
@@ -461,16 +461,71 @@ describe('SessionController properties', () => {
       fc.property(storedHistory, fc.array(clientOpArb, { maxLength: 120, size: 'max' }), (history, ops) => {
         const backend = memoryBackend(history === null ? {} : { [HISTORY_KEY]: JSON.stringify(history) });
         const r = createControllerRig({ backend });
-        expect(r.client.updates).toEqual([]);
+        expect(r.client.updates).toEqual(r.controller.getSnapshot().session.turns.length ? [{ text: '', context: contextWindow(r.controller.getSnapshot().session.turns) }] : []);
         for (const op of ops) {
           const before = r.controller.getSnapshot().session;
           const seen = r.client.updates.length;
           applyClientOp(r, op);
           const after = r.controller.getSnapshot().session;
-          expect(r.client.updates.slice(seen), JSON.stringify(op)).toEqual(expectedCalls(before, after));
+          expect(r.client.updates.slice(seen), JSON.stringify(op)).toEqual(expectedCalls(before, after, op.kind === 'clear'));
         }
       }),
       { numRuns: PROP_RUNS },
     );
   });
+});
+
+// Feature: conversation-ui, review 26.1: explicit Starting WPM replaces saved calibration.
+it('clears calibration on a WPM change and reloads without the old estimates', () => {
+  fc.assert(fc.property(fc.integer({ min: 7, max: 20 }), (wpm) => {
+    const backend = memoryBackend({ [ONBOARDING_KEY]: JSON.stringify({ v: 1, complete: true, inputChoice: 'blink', estimates: { dotEstimate: 60, dashEstimate: 180 } }) });
+    const r = createControllerRig({ backend });
+    r.controller.setInitialEstimates({ dotEstimate: 60, dashEstimate: 180 });
+    expect(r.controller.updateSettings({ startingWpm: wpm }).ok).toBe(true);
+    expect(r.engine().config).toEqual({ startingWpm: wpm, mode: 'adaptive' });
+    expect(readOnboardingRecord(backend)).toMatchObject({ kind: 'valid', record: { complete: true, inputChoice: 'blink', estimates: null } });
+    const reload = createControllerRig({ backend });
+    expect(reload.engine().config).toEqual({ startingWpm: wpm, mode: 'adaptive' });
+    r.controller.dispose();
+    reload.controller.dispose();
+  }), { numRuns: PROP_RUNS });
+});
+
+// Feature: conversation-ui, review 26.4: recognizer finals cannot echo Dit's speech.
+it('drops delayed speech echoes and accepts a partner after the cooldown', () => {
+  fc.assert(fc.property(fc.integer({ min: 0, max: 1499 }), (delay) => {
+    const r = createControllerRig();
+    r.controller.setListen(true);
+    r.script({ type: 'char', char: 'hi' }); r.down(); r.up();
+    r.script({ type: 'command', command: 'speak' }); r.down(); r.up();
+    r.speechOutput.finish('done');
+    r.advance(delay);
+    r.speechInput.emitFinal('A delayed final');
+    expect(r.controller.getSnapshot().session.turns).toHaveLength(1);
+    r.advance(1500 - delay);
+    r.speechInput.emitFinal(' HI! ');
+    expect(r.controller.getSnapshot().session.turns).toHaveLength(1);
+    r.speechInput.emitFinal('Would you like water?');
+    expect(r.controller.getSnapshot().session.turns.at(-1)).toMatchObject({ role: 'partner', text: 'Would you like water?' });
+    r.controller.dispose();
+  }), { numRuns: PROP_RUNS });
+});
+
+// Feature: input-sources, review 19.1: late video frames must still reach the real engine.
+it('clamps blink down and up to the last engine input time', () => {
+  fc.assert(fc.property(fc.integer({ min: 1, max: 200 }), (late) => {
+    const r = createControllerRig({ createEngine: engineOrDefault(createEngine) });
+    r.down(1000); r.up(1100);
+    r.advance(600); // the engine tick commits e at clock 1600
+    r.down(1600 - late, 'blink');
+    r.up(1700, 'blink');
+    r.advance(600);
+    expect(r.controller.getSnapshot().session.currentText.replaceAll(' ', '')).toBe('ee');
+    // A stale release closes the held input even when clamped to its start (zero duration).
+    r.down(2300, 'blink'); r.up(2200, 'blink');
+    r.down(2400, 'blink'); r.up(2500, 'blink');
+    r.advance(1000);
+    expect(r.controller.getSnapshot().session.currentText.replaceAll(' ', '')).toBe('eee');
+    r.controller.dispose();
+  }), { numRuns: PROP_RUNS });
 });

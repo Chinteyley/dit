@@ -393,3 +393,16 @@ Out of scope: anything the brief lists as out of scope (including a Morse traini
 9. WHEN the Alarm_Machine enters Ringing, THE Alarm_Handler SHALL show the Alarm_Card with the accessible name "I need help" and SHALL move keyboard focus to the Alarm_Card's dismiss button. WHEN the Alarm_Episode ends, THE Alarm_Handler SHALL move keyboard focus to the Keying_Surface as stated in Requirement 2 criterion 10, so that the next Space or Enter press keys Morse.
 10. THE Onboarding_Flow SHALL show all text and controls of every step without horizontal page scrolling or clipping, with every control operable by pointer and keyboard, on viewports of 768 by 1024 CSS pixels (portrait) and 1024 by 768 CSS pixels (landscape), and SHALL NOT lock the screen orientation.
 11. WHEN the viewport orientation changes while the Onboarding_Flow is open, THE Onboarding_Flow SHALL keep the current step, the selected Input_Choice and the Practice_Presses collected so far without change.
+
+
+## Review corrections: single-input reachability and cancellation (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+24.1. THE app SHALL satisfy: Close the cheat sheet on any committed character or command regardless of open reason. Every code must be reachable without scrolling: use a dense viewport layout or single-input paging at 1280×800, 820×1180 and 393×852.
+24.2. THE app SHALL satisfy: After five calibration presses, Speak (.-.-.) or a further press followed by a letter gap accepts the measured/default speed. Defer acceptance until a pattern commits, giving SOS priority. Rebuild the guard with accepted timing so Speak finishes the legend even when calibration is much faster than Starting WPM. Preserve the five-duration cap.
+24.3. THE app SHALL satisfy: Finishing setup with key/tap or blink disables switch input and clears the learned switch key. Apply the same source selection when restoring a completed record.
+24.4. THE app SHALL satisfy: Cancelling rerun restores the timing estimates that were in effect before setup, even after accepting a new calibration; leave the persisted record unchanged.
+24.5. THE app SHALL satisfy: On reload with saved blink input, automatically resume only if the Permissions API reports camera permission granted; prompt/denied/unsupported states retain the explicit camera action.
+
+Review integration detail: setup cancellation snapshots the session engine’s current adapted estimates through getEstimates(), rather than rereading storage. Practice and Legend are non-modal panels beside the keying surface; focus returns to that surface for Speak-code acceptance/Start. Learning a switch re-enables its source after a previous key/tap or blink choice disabled it.

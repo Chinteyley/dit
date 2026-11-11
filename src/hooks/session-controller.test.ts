@@ -47,7 +47,7 @@ describe('construction', () => {
     expect(settings.startingWpm).toBe(10);
     expect(rig.engine().config).toEqual({ startingWpm: 10, mode: 'fixed' });
     expect(rig.engine().calls).toEqual([]);
-    expect(rig.client.updates).toEqual([]);
+    expect(rig.client.updates).toEqual([{ text: '', context: [{ role: 'partner', text: 'Are you thirsty?' }] }]);
     expect(rig.controller.getSnapshot().listen.on).toBe(false);
   });
 
@@ -254,6 +254,7 @@ describe('the Client', () => {
       { text: 'hi', context: [] },
       { text: 'hi', context: [{ role: 'partner', text: 'Are you ok?' }] },
       { text: '', context: [{ role: 'partner', text: 'Are you ok?' }, { role: 'speaker', text: 'hi' }] },
+      { text: '', context: [{ role: 'partner', text: 'Are you ok?' }, { role: 'speaker', text: 'hi' }, { role: 'partner', text: 'Good.' }] },
     ]);
   });
 
@@ -535,11 +536,12 @@ describe('createSessionController without a Press_Router', () => {
       'updateSettings',
       'updateInputSettings',
       'setInitialEstimates',
+      'getEstimates',
       'setListen',
       'setSourceStatuses',
       'dismissMessage',
       'discardInput',
-      'onCharCommitted',
+      'onCodeCommitted',
       'getSnapshot',
       'subscribe',
       'dispose',

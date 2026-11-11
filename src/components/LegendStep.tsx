@@ -36,6 +36,7 @@ export function LegendStep({ dispatch }: LegendStepProps) {
         ))}
       </ul>
       <p className="max-w-[52ch] text-lg text-text">{LEGEND_STEP_HINT}</p>
+      <p className="text-lg text-text">Key Speak (.-.-.) to start.</p>
       <button
         type="button"
         onClick={() => dispatch({ type: 'start' })}

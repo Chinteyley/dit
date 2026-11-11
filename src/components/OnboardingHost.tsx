@@ -21,6 +21,7 @@ export function OnboardingHost({ controller }: OnboardingHostProps) {
   const api = useMemo<OnboardingSessionApi>(
     () => ({
       setInitialEstimates: session.setInitialEstimates,
+      getEstimates: () => session.controller.getEstimates(),
       focusKeyingSurface: session.focusKeyingSurface,
       // "Run setup again" (11.7): the selected tile, once the flow has rendered.
       focusSelectedChoice: () => {

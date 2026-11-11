@@ -538,3 +538,19 @@ Rules for every task:
   ]
 }
 ```
+
+
+## Review corrections: single-input reachability and cancellation (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+- [x] 24.1 Close the cheat sheet on any committed character or command regardless of open reason. Every code must be reachable without scrolling: use a dense viewport layout or single-input paging at 1280×800, 820×1180 and 393×852.
+  - Verified: `CheatSheet.test.tsx at all three viewport sizes; sheet-state property`.
+- [x] 24.2 After five calibration presses, Speak or a further press followed by a letter gap accepts the measured/default speed. Defer acceptance to a committed pattern, preserve SOS priority and rebuild the guard with accepted timing for the legend.
+  - Verified: `DitRoot.test.tsx (Speak/extra press acceptance, fast calibration at default Starting WPM, SOS priority)` and `OnboardingFlow.test.tsx (partner acceptance returns focus to the keying surface)`.
+- [x] 24.3 Finishing setup with key/tap or blink disables switch input and clears the learned switch key. Apply the same source selection when restoring a completed record.
+  - Verified: `controller.prop.test.ts (finish and reload)`.
+- [x] 24.4 Cancelling rerun restores the timing estimates that were in effect before setup, even after accepting a new calibration; leave the persisted record unchanged.
+  - Verified: `controller.test.ts cancellation property`.
+- [x] 24.5 On reload with saved blink input, automatically resume only if the Permissions API reports camera permission granted; prompt/denied/unsupported states retain the explicit camera action.
+  - Verified: `SafetyNotices.test.tsx (granted/prompt/denied/unsupported)`.

@@ -59,6 +59,7 @@ export function PracticeStep({ state, dispatch, startingWpm }: PracticeStepProps
         {heldIndicatorShown(state) ? <p className="text-lg text-muted">{HOLDING_TEXT}</p> : null}
       </div>
 
+      {result.kind !== 'none' ? <p className="text-lg text-text">Press once more and pause, or key Speak (.-.-.), to accept this speed. Then key Speak to start.</p> : null}
       {result.kind === 'measured' ? (
         <div className="flex flex-col gap-4">
           <p className="text-2xl font-semibold text-text">{speedText(result.calibration.dotEstimate)}</p>

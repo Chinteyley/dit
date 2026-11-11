@@ -81,6 +81,7 @@ export interface ControllerDeps {
    * save-failure message is then shown once from the start (Req 16.9). Defaults to true.
    */
   readonly persistent?: boolean;
+  readonly clearCalibration?: () => boolean;
 }
 
 export const SAVE_FAILED_TEXT = 'History or settings could not be saved on this device.';
@@ -136,13 +137,15 @@ export interface SessionController {
   updateInputSettings(input: InputSettings): void;
   /** From onboarding-and-safety calibration; null builds the Engine from the Starting_WPM defaults. */
   setInitialEstimates(estimates: Estimates | null): void;
+  /** Current calibrated/adapted press timing, for cancelling setup without losing the prior rhythm. */
+  getEstimates(): Estimates | null;
   setListen(on: boolean): void;
   setSourceStatuses(statuses: Readonly<Record<SourceKind, SourceStatus>>): void;
   dismissMessage(id: StatusMessage['id']): void;
   /** Integration point: called by a Press_Router when presses start or stop going elsewhere (onboarding O12.10). */
   discardInput(): void;
-  /** Integration point: fires once per `char` Engine_Event the session applies (onboarding O10.3). */
-  onCharCommitted(listener: (char: string) => void): Unsubscribe;
+  /** Integration point: fires once per committed character or command the session applies (onboarding O10.3). */
+  onCodeCommitted(listener: (char: string) => void): Unsubscribe;
   /** The same object until something changes. */
   getSnapshot(): SessionSnapshot;
   subscribe(listener: () => void): Unsubscribe;
@@ -174,6 +177,9 @@ export function createSessionController(deps: ControllerDeps): SessionController
   let restartCancel: (() => void) | null = null;
   let voices: readonly VoiceInfo[] = speechOutput.voices();
   let messages: readonly StatusMessage[] = [];
+  let speechEndedAt = -Infinity;
+  let lastSpokenSentence = '';
+  const normalizedSentence = (text: string): string => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
   const subscribers = new Set<() => void>();
   const charListeners = new Set<(char: string) => void>();
@@ -293,11 +299,13 @@ export function createSessionController(deps: ControllerDeps): SessionController
       return;
     }
     const onEnd = (outcome: 'done' | 'error' | 'cancelled'): void => {
+      speechEndedAt = clock();
       if (disposed || outcome !== 'error') return;
       batch(() => addMessage({ id: 'speak-error', text: SPEAK_ERROR_TEXT }));
     };
     try {
       // Voice and rate are read now, so a new selection applies to this utterance (Req 17.8).
+      lastSpokenSentence = normalizedSentence(sentence);
       speechOutput.speak(sentence, { voiceURI: settings.voiceURI, rate: settings.speechRate }, onEnd);
     } catch {
       addMessage({ id: 'speak-error', text: SPEAK_ERROR_TEXT });
@@ -353,10 +361,7 @@ export function createSessionController(deps: ControllerDeps): SessionController
     // Client rules (Req 9).
     const before = trimmedText(prev);
     const after = trimmedText(next);
-    const lastBefore = prev.turns.at(-1);
-    const lastAfter = next.turns.at(-1);
-    const partnerAppended = lastAfter !== undefined && lastAfter.id !== lastBefore?.id && lastAfter.role === 'partner';
-    if (after !== before || (partnerAppended && after !== '')) {
+    if (after !== before || next.turns !== prev.turns || action.type === 'clear-history') {
       client.update(after, contextWindow(next.turns));
     }
 
@@ -365,8 +370,8 @@ export function createSessionController(deps: ControllerDeps): SessionController
     // Effects in order, each to completion before the next (Req 5.7, 8.8).
     for (const effect of effects) runEffect(effect);
 
-    if (action.type === 'engine' && action.event.type === 'char') {
-      const { char } = action.event;
+    if (action.type === 'engine' && (action.event.type === 'char' || action.event.type === 'command')) {
+      const char = action.event.type === 'char' ? action.event.char : action.event.command;
       for (const listener of [...charListeners]) {
         try {
           listener(char);
@@ -440,9 +445,9 @@ export function createSessionController(deps: ControllerDeps): SessionController
     batch(() => {
       applyListen({ type: 'final' });
       // Our own voice must not become a partner Turn (Req 18.7); blank finals are dropped (Req 18.5).
-      if (speechOutput.isSpeaking()) return;
+      if (speechOutput.isSpeaking() || clock() - speechEndedAt < 1_500) return;
       const trimmed = trimWhitespace(text);
-      if (trimmed !== '') dispatch({ type: 'partner-line', text: trimmed });
+      if (trimmed !== '' && normalizedSentence(trimmed) !== lastSpokenSentence) dispatch({ type: 'partner-line', text: trimmed });
     });
   };
 
@@ -532,7 +537,8 @@ export function createSessionController(deps: ControllerDeps): SessionController
           }
           return;
         }
-        const events = down ? engine.press(event.t) : engine.release(event.t);
+        const t = event.source === 'blink' ? Math.max(event.t, engine.snapshot().lastT ?? event.t) : event.t;
+        const events = down ? engine.press(t) : engine.release(t);
         engineHeld = down;
         for (const engineEvent of events) dispatch({ type: 'engine', event: engineEvent });
         if (!alarm.isActive()) reschedule();
@@ -565,7 +571,8 @@ export function createSessionController(deps: ControllerDeps): SessionController
       const result = validateSettingsPatch(settings, patch);
       if (!result.ok || disposed) return result;
       const next = withStoredKey(result.value);
-      const engineChanged = next.startingWpm !== settings.startingWpm || next.adaptive !== settings.adaptive;
+      const speedChanged = next.startingWpm !== settings.startingWpm;
+      const engineChanged = speedChanged || next.adaptive !== settings.adaptive;
       const anyChange =
         engineChanged ||
         next.voiceURI !== settings.voiceURI ||
@@ -574,6 +581,10 @@ export function createSessionController(deps: ControllerDeps): SessionController
         next.switchKey !== settings.switchKey;
       if (!anyChange) return ok(settings);
       batch(() => {
+        if (speedChanged) {
+          estimates = null;
+          if (deps.clearCalibration?.() === false) saveFailed();
+        }
         commitSettings(next);
         if (engineChanged) replaceEngine();
       });
@@ -592,6 +603,11 @@ export function createSessionController(deps: ControllerDeps): SessionController
       if (disposed) return;
       estimates = next;
       batch(replaceEngine);
+    },
+
+    getEstimates() {
+      const { dotEstimate, dashEstimate } = engine.estimates();
+      return { dotEstimate, dashEstimate };
     },
 
     setListen(on) {
@@ -628,7 +644,7 @@ export function createSessionController(deps: ControllerDeps): SessionController
       });
     },
 
-    onCharCommitted(listener) {
+    onCodeCommitted(listener) {
       if (disposed) return () => undefined;
       charListeners.add(listener);
       return () => {

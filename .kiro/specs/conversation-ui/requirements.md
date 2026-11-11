@@ -571,3 +571,16 @@ Added on 2026-11-11 in the design polish pass.
 5. WHILE Wide_Layout applies, THE Partner_Zone SHALL fill the secondary column below the "Commands" region, SHALL scroll the "Conversation history" list inside the panel when the Turns do not fit, and SHALL keep the "Partner controls" section at the bottom of the panel inside the viewport without page scroll.
 6. WHILE One_Column_Layout applies, THE Partner_Zone SHALL follow the "Commands" region and SHALL limit the "Conversation history" list to a maximum height, beyond which the list scrolls inside itself.
 7. THE Partner_Zone SHALL keep every accessible name and role that Requirements 15, 18, 19 and 20 give its contents: the list "Conversation history", the switch "Listen", the text field "Your line", and the buttons "Add line" and "Settings", inside a section named "Partner controls", each control with a pointer target of at least 44 by 44 CSS pixels (Requirement 22 criterion 6).
+
+
+## Review corrections: timing, SOS, context and echo (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+26.1. THE app SHALL satisfy: An explicit change to Starting WPM clears calibrated estimates in memory and the persisted onboarding record, retaining completion and input choice, before replacing the engine. Reload must use the new starting speed.
+26.2. THE app SHALL satisfy: Raise SOS when the last typed word is exactly sos and a word gap or speak command follows; remove only that word, clear stale suggestions, preserve preceding text and do not speak it.
+26.3. THE app SHALL satisfy: Notify expansion immediately whenever conversation context changes, including clear history; invalidate deleted context before any debounced request can send it.
+26.4. THE app SHALL satisfy: Drop final Listen transcripts during speech, within 1500 ms after speech ends, or matching the last spoken sentence after case/whitespace/punctuation normalization.
+26.5. THE app SHALL satisfy: Clamp incoming blink down/up timestamps to the engine last accepted input timestamp so delayed video frames cannot drop presses as past input.
+
+Review integration detail: setup cancellation snapshots the session engine’s current adapted estimates through getEstimates(), rather than rereading storage. Practice and Legend are non-modal panels beside the keying surface; focus returns to that surface for Speak-code acceptance/Start. Learning a switch re-enables its source after a previous key/tap or blink choice disabled it.

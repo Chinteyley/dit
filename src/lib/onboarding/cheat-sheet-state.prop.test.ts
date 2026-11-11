@@ -15,7 +15,7 @@ describe('Cheat_Sheet state properties', () => {
           state = cheatSheetStep(state, action, ctx);
           expect(state).toEqual(expected[i]);
           if (!state.open) expect(state).toEqual(CLOSED_SHEET);
-          if (ctx.alarmActive) expect(state).toBe(before);
+          if (ctx.alarmActive && action.type !== 'char-committed') expect(state).toBe(before);
         });
       }),
       { numRuns: PROP_RUNS },

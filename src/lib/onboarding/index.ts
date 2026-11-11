@@ -45,6 +45,7 @@ export type {
   SwitchPhase,
 } from './types';
 export {
+  clearStoredCalibration,
   EstimatesSchema,
   ONBOARDING_KEY,
   OnboardingRecordSchema,

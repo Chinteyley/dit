@@ -1,7 +1,7 @@
 /**
  * Example tests for the onboarding-and-safety integration seams on the SessionController
  * (tasks 9.11 to 9.13): discardInput(), the withholdUp reset on the next down, and
- * onCharCommitted. Criterion numbers prefixed "O" are from the onboarding-and-safety spec.
+ * onCodeCommitted. Criterion numbers prefixed "O" are from the onboarding-and-safety spec.
  */
 import { describe, expect, it } from 'vitest';
 import { TEXT_MAX } from '@/lib/conversation';
@@ -106,13 +106,13 @@ describe('the withheld up is cleared by the next down (O12.8)', () => {
   });
 });
 
-describe('onCharCommitted (O10.3, O10.4, O10.11)', () => {
+describe('onCodeCommitted (O10.3, O10.4, O10.11)', () => {
   it('fires once per char, after its effects and before subscribers, with the text already committed', () => {
     const rig = createControllerRig();
     const order: string[] = [];
     const seenText: string[] = [];
     rig.controller.subscribe(() => order.push('notify'));
-    rig.controller.onCharCommitted((c) => {
+    rig.controller.onCodeCommitted((c) => {
       order.push(`char:${c}`);
       seenText.push(rig.controller.getSnapshot().session.currentText);
     });
@@ -130,7 +130,7 @@ describe('onCharCommitted (O10.3, O10.4, O10.11)', () => {
     rig.up();
     expect(rig.controller.getSnapshot().session.currentText).toHaveLength(TEXT_MAX);
     const chars: string[] = [];
-    rig.controller.onCharCommitted((c) => chars.push(c));
+    rig.controller.onCodeCommitted((c) => chars.push(c));
     rig.down();
     rig.script(char('b'));
     rig.up();
@@ -138,10 +138,10 @@ describe('onCharCommitted (O10.3, O10.4, O10.11)', () => {
     expect(rig.controller.getSnapshot().session.currentText).toHaveLength(TEXT_MAX);
   });
 
-  it('never fires for symbol, space, unknown or command events, or for presses sent to the alarm', () => {
+  it('fires for commands, but never for symbol, space or unknown events, or for presses sent to the alarm', () => {
     const rig = createControllerRig();
     const chars: string[] = [];
-    rig.controller.onCharCommitted((c) => chars.push(c));
+    rig.controller.onCodeCommitted((c) => chars.push(c));
     rig.down();
     rig.script(symbol('.'), SPACE, { type: 'unknown', pattern: '........' }, NEXT, BACKSPACE);
     rig.up();
@@ -152,17 +152,17 @@ describe('onCharCommitted (O10.3, O10.4, O10.11)', () => {
     rig.script(char('z'));
     rig.down();
     rig.up();
-    expect(chars).toEqual([]);
+    expect(chars).toEqual(['next', 'backspace', 'sos']);
     expect(rig.alarm.presses).toHaveLength(2);
   });
 
   it('a throwing listener stops neither a second listener nor later events', () => {
     const rig = createControllerRig();
     const chars: string[] = [];
-    rig.controller.onCharCommitted(() => {
+    rig.controller.onCodeCommitted(() => {
       throw new Error('cheat sheet failed');
     });
-    rig.controller.onCharCommitted((c) => chars.push(c));
+    rig.controller.onCodeCommitted((c) => chars.push(c));
     rig.down();
     rig.script(char('a'), char('b'));
     rig.up();
@@ -174,8 +174,8 @@ describe('onCharCommitted (O10.3, O10.4, O10.11)', () => {
     const rig = createControllerRig();
     const first: string[] = [];
     const second: string[] = [];
-    const unsubscribe = rig.controller.onCharCommitted((c) => first.push(c));
-    rig.controller.onCharCommitted((c) => second.push(c));
+    const unsubscribe = rig.controller.onCodeCommitted((c) => first.push(c));
+    rig.controller.onCodeCommitted((c) => second.push(c));
     rig.down();
     rig.script(char('a'));
     rig.up();

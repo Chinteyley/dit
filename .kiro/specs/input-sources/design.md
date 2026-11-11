@@ -1182,3 +1182,10 @@ Deviations and clarifications recorded while building this spec. The code and te
 - **Small API additions.** `Debouncer.state()` and `BlinkDetector.state()` return read-only snapshots for tests. `createManualScheduler(clock?)` measures due times from the clock when one is given. `types.ts` also exports `FAILURE_STATUSES` and `isFailureStatus`. `describeElement` reads an input's normalised `type` property, so a missing or unknown type reads as `'text'`, as the browser treats it.
 - **useInputSources.** The input layer is built in the mount effect and torn down on unmount, so React StrictMode's double mount builds a fresh set. Latest props reach it through `useEffectEvent`, and statuses and the learned key render through `useSyncExternalStore`. The returned `learner`, `pendingSince` and `onPendingChange` keep their identity for the component's lifetime; `onPendingChange` works even when a child subscribes before the sources exist.
 - **Lint.** No ESLint config exists yet, so the `no-restricted-globals` / `no-restricted-imports` override for the pure modules is left to the spec that adds ESLint. `purity.test.ts` enforces the same rules now.
+
+
+## Review corrections: delayed blink frames and permission resume (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+Frame timestamps remain suitable for blink detection. Clamp at the engine boundary, where lastT is available. Query Permissions API in the browser UI and preserve manual camera fallback when unsupported or rejected.

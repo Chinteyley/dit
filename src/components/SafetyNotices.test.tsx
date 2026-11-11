@@ -12,6 +12,7 @@ import { SafetyNotices } from './SafetyNotices';
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 const BUTTON = { name: 'Turn on camera for blink input' } as const;
@@ -104,4 +105,19 @@ describe('SafetyNotices', () => {
     act(() => vi.advanceTimersByTime(10_000));
     expect(screen.getByText(SAVE_FAILED)).toBeDefined();
   });
+});
+
+it.each(['granted', 'prompt', 'denied'] as const)('only resumes saved blink automatically for camera permission %s', async (state) => {
+  vi.stubGlobal('navigator', { permissions: { query: vi.fn().mockResolvedValue({ state }) } });
+  const { sources } = setup();
+  await act(async () => { await Promise.resolve(); });
+  expect(startBlinkCalls(sources)).toBe(state === 'granted' ? 1 : 0);
+});
+
+it('keeps the manual camera action when permission querying is unsupported', async () => {
+  vi.stubGlobal('navigator', { permissions: { query: vi.fn().mockRejectedValue(new TypeError('unsupported')) } });
+  const { sources } = setup();
+  await act(async () => { await Promise.resolve(); });
+  expect(startBlinkCalls(sources)).toBe(0);
+  expect(screen.getByRole('button', BUTTON)).toBeDefined();
 });

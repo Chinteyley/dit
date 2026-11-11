@@ -107,6 +107,13 @@ function isIndex(state: SessionState, index: number): boolean {
   return Number.isInteger(index) && index >= 0 && index < state.suggestions.length;
 }
 
+/** Letter-by-letter SOS is reserved at the end of a word, before suggestions or speech. */
+function typedSos(state: SessionState): Transition | null {
+  if (!/(^| )sos$/.test(trimmedText(state))) return null;
+  const text = trimmedText(state).slice(0, -3);
+  return { state: clearSuggestions(withText(withoutPattern(state), text)), effects: ALARM };
+}
+
 function commandStep(state: SessionState, command: CommandName): Transition {
   const cleared = withoutPattern(state);
   switch (command) {
@@ -117,6 +124,8 @@ function commandStep(state: SessionState, command: CommandName): Transition {
       return unchanged(highlight === cleared.highlight ? cleared : { ...cleared, highlight });
     }
     case 'speak': {
+      const sos = typedSos(cleared);
+      if (sos !== null) return sos;
       const { highlight } = cleared;
       if (highlight !== null && isIndex(cleared, highlight)) {
         return speakStep(cleared, cleared.suggestions[highlight] ?? '');
@@ -144,6 +153,8 @@ function engineStep(state: SessionState, event: EngineEvent): Transition {
       );
     }
     case 'space': {
+      const sos = typedSos(state);
+      if (sos !== null) return sos;
       const cleared = withoutPattern(state);
       const text = cleared.currentText;
       const appends = text !== '' && !text.endsWith(' ') && text.length < TEXT_MAX;

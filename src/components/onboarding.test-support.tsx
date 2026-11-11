@@ -43,7 +43,7 @@ export interface SessionRig {
   readonly focusKeyingSurface: Mock<() => void>;
   readonly setInitialEstimates: Mock<SessionApiContextValue['setInitialEstimates']>;
   readonly handlePress: Mock<SessionController['handlePress']>;
-  /** Tells every onCharCommitted listener about a `char` the session applied. */
+  /** Tells every onCodeCommitted listener about a `char` the session applied. */
   commitChar(char: string): void;
   /** Changes what controller.getSnapshot().settings returns and notifies subscribers. */
   setSettings(settings: SettingsRecord): void;
@@ -62,7 +62,7 @@ export function createSessionRig(
     ...INERT_SESSION_API.controller,
     handlePress,
     setInitialEstimates,
-    onCharCommitted(listener) {
+    onCodeCommitted(listener) {
       charListeners.add(listener);
       return () => {
         charListeners.delete(listener);

@@ -300,3 +300,13 @@ Run tests with `bun run test` (never `bun test`). Run one module with `bunx vite
   ]
 }
 ```
+
+
+## Review corrections: delayed blink frames and permission resume (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+- [x] 19.1 Clamp blink events to the receiving engine last input time so delayed video timestamps never cause a press/release to be ignored as in the past.
+  - Verified: `session-controller.prop.test.ts (real-engine delayed blink)`.
+- [x] 19.2 Saved blink choice may resume without another partner action only when camera permission is already granted; never request camera access automatically for prompt/denied/unknown permission.
+  - Verified: `SafetyNotices.test.tsx (granted/prompt/denied/unsupported)`.

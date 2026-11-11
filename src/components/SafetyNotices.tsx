@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { SETUP_SAVE_FAILED_TEXT, TURN_ON_BLINK_CAMERA_LABEL, type OnboardingController } from '@/lib/onboarding';
 
 export interface SafetyNoticesProps {
@@ -14,6 +14,25 @@ export interface SafetyNoticesProps {
  */
 export function SafetyNotices({ onboarding }: SafetyNoticesProps) {
   const { blinkResume, saveFailed } = useSyncExternalStore(onboarding.subscribe, onboarding.getView, onboarding.getView);
+  useEffect(() => {
+    let cancelled = false;
+    const view = onboarding.getView();
+    if (view.inputChoiceInEffect !== 'blink' || !view.blinkResume.visible || view.blinkResume.reason !== null) return;
+    const resumeGrantedCamera = async (): Promise<void> => {
+      try {
+        const permission = await navigator.permissions?.query({ name: 'camera' });
+        const current = onboarding.getView();
+        if (
+          !cancelled && permission?.state === 'granted' && current.inputChoiceInEffect === 'blink' &&
+          current.blinkResume.visible && current.blinkResume.reason === null && !onboarding.isOpen()
+        ) onboarding.turnOnBlinkCamera();
+      } catch {
+        // Unsupported permission queries retain the explicit camera action.
+      }
+    };
+    void resumeGrantedCamera();
+    return () => { cancelled = true; };
+  }, [onboarding]);
   if (!blinkResume.visible && blinkResume.reason === null && !saveFailed) return null;
 
   return (

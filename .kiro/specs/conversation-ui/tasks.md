@@ -500,3 +500,19 @@ All commands use `bun run test`, `bun run typecheck` and `bun run lint`. Never r
   ]
 }
 ```
+
+
+## Review corrections: timing, SOS, context and echo (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+- [x] 26.1 An explicit change to Starting WPM clears calibrated estimates in memory and the persisted onboarding record, retaining completion and input choice, before replacing the engine. Reload must use the new starting speed.
+  - Verified: `session-controller.prop.test.ts (WPM change/reload)`.
+- [x] 26.2 Raise SOS when the last typed word is exactly sos and a word gap or speak command follows; remove only that word, clear stale suggestions, preserve preceding text and do not speak it.
+  - Verified: `session.prop.test.ts (SOS boundaries)`.
+- [x] 26.3 Notify expansion immediately whenever conversation context changes, including clear history; invalidate deleted context before any debounced request can send it.
+  - Verified: `hooks/session-expansion.prop.test.ts (pending and debounced clear)`.
+- [x] 26.4 Drop final Listen transcripts during speech, within 1500 ms after speech ends, or matching the last spoken sentence after case/whitespace/punctuation normalization.
+  - Verified: `session-controller.prop.test.ts (echo/cooldown)`.
+- [x] 26.5 Clamp incoming blink down/up timestamps to the engine last accepted input timestamp so delayed video frames cannot drop presses as past input.
+  - Verified: `session-controller.prop.test.ts (real-engine delayed blink)`.

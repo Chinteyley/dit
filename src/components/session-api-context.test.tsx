@@ -58,7 +58,7 @@ describe('SessionApiContext without a provider', () => {
     expect(() => {
       controller.handlePress({ kind: 'down', t: 0, source: 'keyboard' });
       controller.discardInput();
-      controller.onCharCommitted(() => undefined)();
+      controller.onCodeCommitted(() => undefined)();
       controller.subscribe(() => undefined)();
       focusKeyingSurface();
       setInitialEstimates(null);

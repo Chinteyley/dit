@@ -39,9 +39,9 @@ describe('cheatSheetStep', () => {
     expect(cheatSheetStep(PARTNER_OPEN, { type: 'partner-open' }, IDLE)).toBe(PARTNER_OPEN);
   });
 
-  it('closes an unknown sheet on the next committed character only (Requirements 10.3, 10.4)', () => {
+  it('closes either opening on any committed code (Requirements 10.3, 10.4)', () => {
     expect(cheatSheetStep(UNKNOWN_OPEN, { type: 'char-committed' }, IDLE)).toBe(CLOSED_SHEET);
-    expect(cheatSheetStep(PARTNER_OPEN, { type: 'char-committed' }, IDLE)).toBe(PARTNER_OPEN);
+    expect(cheatSheetStep(PARTNER_OPEN, { type: 'char-committed' }, IDLE)).toBe(CLOSED_SHEET);
     expect(cheatSheetStep(CLOSED_SHEET, { type: 'char-committed' }, IDLE)).toBe(CLOSED_SHEET);
   });
 
@@ -51,9 +51,9 @@ describe('cheatSheetStep', () => {
     expect(cheatSheetStep(CLOSED_SHEET, { type: 'close' }, IDLE)).toBe(CLOSED_SHEET);
   });
 
-  it('ignores every action while the alarm is active (Requirements 7.9, 10.14)', () => {
+  it('ignores opening and partner actions while the alarm is active; committed SOS can close it (Requirements 7.9, 10.14)', () => {
     expect(cheatSheetStep(UNKNOWN_OPEN, { type: 'close' }, ALARM)).toBe(UNKNOWN_OPEN);
-    expect(cheatSheetStep(UNKNOWN_OPEN, { type: 'char-committed' }, ALARM)).toBe(UNKNOWN_OPEN);
+    expect(cheatSheetStep(UNKNOWN_OPEN, { type: 'char-committed' }, ALARM)).toBe(CLOSED_SHEET);
     expect(cheatSheetStep(CLOSED_SHEET, { type: 'unknown', pattern: '..-.-' }, ALARM)).toBe(CLOSED_SHEET);
     expect(cheatSheetStep(CLOSED_SHEET, { type: 'partner-open' }, ALARM)).toBe(CLOSED_SHEET);
   });

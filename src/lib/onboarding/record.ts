@@ -95,3 +95,10 @@ export function writeOnboardingRecord(backend: KeyValueBackend | null, r: Onboar
     return err('write-failed');
   }
 }
+
+/** Keep setup complete and the input choice, but let an explicit Starting WPM replace calibration. */
+export function clearStoredCalibration(backend: KeyValueBackend | null): Result<void, 'write-failed'> {
+  const loaded = readOnboardingRecord(backend);
+  if (loaded.kind === 'read-error') return err('write-failed');
+  return loaded.kind === 'valid' ? writeOnboardingRecord(backend, { ...loaded.record, estimates: null }) : ok(undefined);
+}

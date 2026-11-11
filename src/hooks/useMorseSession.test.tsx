@@ -146,11 +146,11 @@ describe('useMorseSession', () => {
     expect(latest.config.initialDashEstimate).toBe(450);
   });
 
-  it('forwards onCharCommitted listeners registered before the controller exists', () => {
+  it('forwards onCodeCommitted listeners registered before the controller exists', () => {
     const f = fakes();
     const seen: string[] = [];
     function Child({ api }: { readonly api: ReturnType<typeof useMorseSession> }) {
-      useEffect(() => api.controller.onCharCommitted((char) => seen.push(char)), [api.controller]);
+      useEffect(() => api.controller.onCodeCommitted((char) => seen.push(char)), [api.controller]);
       return null;
     }
     let controller: ReturnType<typeof useMorseSession>['controller'] | null = null;

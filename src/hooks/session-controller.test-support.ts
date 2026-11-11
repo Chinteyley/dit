@@ -22,6 +22,7 @@ import {
   type InspectableScheduler,
 } from '@/lib/conversation/test-support';
 import { createManualClock, pressEvent, type ManualClock, type PressEvent, type SourceKind } from '@/lib/input';
+import { clearStoredCalibration } from '@/lib/onboarding';
 import type { EngineEvent } from '@/lib/morse';
 import { createFakeSpeechInput, createFakeSpeechOutput, type FakeSpeechInput, type FakeSpeechOutput } from '@/lib/speech/fakes';
 import { createSessionController, type ControllerDeps, type SessionController } from './session-controller';
@@ -54,6 +55,8 @@ export interface ControllerRig {
 }
 
 export interface RigOptions {
+  readonly createEngine?: ControllerDeps['createEngine'];
+  readonly createClient?: ControllerDeps['createClient'];
   readonly backend?: KeyValueBackend;
   readonly speechOutput?: FakeSpeechOutput;
   readonly speechInput?: FakeSpeechInput;
@@ -81,14 +84,15 @@ export function createControllerRig(opts: RigOptions = {}): ControllerRig {
     clock: clock.now,
     scheduler,
     ...(opts.sharedScheduler === true ? {} : { uiScheduler: ui }),
-    createEngine: engines.create,
+    createEngine: opts.createEngine ?? engines.create,
     pendingSince: () => (pending.length === 0 ? null : Math.min(...pending)),
-    createClient: client.create,
+    createClient: opts.createClient ?? client.create,
     speechOutput,
     speechInput,
     alarm,
     unknownPattern: unknown,
     storage,
+    clearCalibration: () => clearStoredCalibration(backend).ok,
     ...(opts.persistent === undefined ? {} : { persistent: opts.persistent }),
   };
   const controller = createSessionController(deps);

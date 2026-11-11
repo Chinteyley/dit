@@ -113,6 +113,8 @@ describe('DitRoot', () => {
     const before = typing();
     expect(before).toBe('i '); // the pause after "i" was a word gap
     expect(alarm()).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'All codes' }));
+    surface().focus();
     key('...---...');
     expect(alarm()).not.toBeNull();
     expect(screen.getByText('Sound is unavailable on this device right now.')).toBeDefined();
@@ -123,6 +125,7 @@ describe('DitRoot', () => {
     advance(50);
     expect(document.activeElement).toBe(surface());
     expect(typing()).toBe(before);
+    expect(screen.queryByRole('region', { name: 'All codes' })).toBeNull();
     // Keying goes on as before.
     key('.');
     expect(typing().trimEnd()).toBe('i e');
@@ -145,4 +148,39 @@ describe('DitRoot', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Practice' })).toBeDefined();
     expect(typing()).toBe('Nothing typed yet');
   });
+});
+
+it('accepts calibration and finishes setup using only Speak from the keying surface', () => {
+  store(FAST); renderRoot();
+  fireEvent.click(screen.getByRole('button', { name: 'Key or tap' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  advance(50);
+  key('...--');
+  expect(screen.getByRole('button', { name: 'Use this speed' })).toBeDefined();
+  key('.-.-.');
+  advance(50);
+  expect(screen.getByRole('heading', { level: 2, name: 'Commands' })).toBeDefined();
+  expect(document.activeElement).toBe(surface());
+  key('.-.-.');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(JSON.parse(localStorage.getItem(ONBOARDING_KEY) ?? '')).toMatchObject({ complete: true, inputChoice: 'key-tap', estimates: { dotEstimate: 60, dashEstimate: 180 } });
+});
+
+it('accepts fast calibration at the default starting speed with one further press and pause', () => {
+  store(DEFAULT_SETTINGS);
+  renderRoot();
+  fireEvent.click(screen.getByRole('button', { name: 'Key or tap' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  advance(50);
+  key('...--');
+  advance(400);
+  expect(screen.getByRole('button', { name: 'Use this speed' })).toBeDefined();
+  key('.');
+  advance(400);
+  expect(screen.getByRole('heading', { level: 2, name: 'Commands' })).toBeDefined();
+  expect(document.activeElement).toBe(surface());
+  key('.-.-.');
+  advance(400);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(JSON.parse(localStorage.getItem(ONBOARDING_KEY) ?? '')).toMatchObject({ complete: true, estimates: { dotEstimate: 60, dashEstimate: 180 } });
 });
