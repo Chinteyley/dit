@@ -1,5 +1,8 @@
-# dit
-Morse code, resurrected as a voice. One-switch AAC with LLM sentence expansion. Kiroween 2026.
+# Dit
+
+Morse code, resurrected as a voice. One-switch AAC with LLM sentence expansion. Kiroween 2026, Resurrection category.
+
+**Try it:** https://dit-lake.vercel.app (works in a desktop or tablet browser; Space or a tap keys Morse)
 
 ## What Dit is
 
@@ -25,7 +28,9 @@ Every speaker function works with the one input alone. The partner uses ordinary
 - **Partner display.** The sentence being typed and the last sentence said lead the screen in large, high-contrast type, readable across a bed and able to flip 180°. The history, the partner's typed line, Listen and Settings sit in a quieter panel beside or below.
 - **Onboarding.** Pick an input, make 5 practice presses to set the speed and learn the commands in under a minute.
 
-### Pending manual checks
+### Checks still needing real hardware
+
+Automated: 1,400+ unit and property tests, plus an end-to-end run in a browser with the live model. Not yet run by a person:
 
 - Real switch, touch tablet and webcam checks (input-sources task 17).
 - Tablet, zoom, reduced-motion and contrast checks (conversation-ui task 16).

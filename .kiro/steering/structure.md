@@ -14,7 +14,7 @@ dit/
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx            # html lang="en", dark theme, fonts, metadata
-│   │   ├── page.tsx              # renders <DitApp/> (client root)
+│   │   ├── page.tsx              # renders <DitRoot/> (client root)
 │   │   ├── globals.css           # Tailwind v4 @theme tokens (colors, type scale, motion)
 │   │   └── api/expand/route.ts   # POST /api/expand (the only server code)
 │   ├── lib/                      # framework-free, DOM-free, deterministic
