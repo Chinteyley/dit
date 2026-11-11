@@ -270,3 +270,10 @@ The source of truth for numbers and behaviour is `.kiro/steering/morse-engine.md
 4. FOR ALL inputs, calling the Encoder twice with the same text and Unit, or calling the Calibrator twice with the same durations, SHALL return deeply equal Results (determinism property).
 5. FOR ALL input sequences that contain no `reset()` call and end with the switch up, inserting any number of extra Ticks, each with a timestamp at or after the preceding input's timestamp and at or before the following input's timestamp, SHALL leave unchanged both the concatenation, in call order, of the Engine_Event lists returned by all calls and the final Dot_Estimate and Dash_Estimate values. This holds provided both sequences end with a Tick whose timestamp is at or after the final deadline, where the final deadline is the timestamp of the last Release plus the Word_Gap_Threshold in effect after that Release (tick-independence property).
 6. THE modules in `src/lib/morse/` SHALL import nothing from `react`, `next`, `src/components` or `src/hooks`, either directly or through other modules.
+
+
+## Review correction: separate pressing speed from pause speed (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+17.1. THE app SHALL satisfy: Compute letter and word gap thresholds as 2 and 4.5 times max(dotEstimate, 1200 / startingWpm), while dot/dash classification continues to use calibrated/adapted press estimates. Deadlines and every gap comparison use the same floor.

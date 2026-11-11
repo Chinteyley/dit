@@ -10,7 +10,7 @@ describe('jitter properties', () => {
     fc.assert(
       fc.property(jitteredSequenceArb, ({ text, unit, base, jittered }) => {
         const decode = (inputs: ReturnType<typeof withEndTick>) =>
-          feed(engineFor({ mode: 'fixed', initialDotEstimate: unit, initialDashEstimate: 3 * unit }), inputs).events;
+          feed(engineFor({ mode: 'fixed', startingWpm: 20, initialDotEstimate: unit, initialDashEstimate: 3 * unit }), inputs).events;
         const expected = decode(withEndTick(base));
         const actual = decode(withEndTick(jittered));
         expect(actual).toStrictEqual(expected);

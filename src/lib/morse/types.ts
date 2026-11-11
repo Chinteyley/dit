@@ -19,9 +19,9 @@ export interface Estimates {
 export interface EstimateSnapshot extends Estimates {
   /** (dot + dash) / 2 */
   readonly dotDashThreshold: number;
-  /** 2 × dot */
+  /** 2 × max(dot, starting unit) */
   readonly letterGapThreshold: number;
-  /** 4.5 × dot */
+  /** 4.5 × max(dot, starting unit) */
   readonly wordGapThreshold: number;
 }
 

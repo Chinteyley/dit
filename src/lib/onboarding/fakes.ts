@@ -64,6 +64,7 @@ export function createFakeEngine(config: EngineConfig = {}): FakeEngine {
     snapshot: (): DecoderState => ({
       mode: fake.mode,
       alpha: 0.15,
+      startingUnit: 200,
       estimates: { dotEstimate: FAKE_SNAPSHOT.dotEstimate, dashEstimate: FAKE_SNAPSHOT.dashEstimate },
       switchDown: false,
       pressStart: null,

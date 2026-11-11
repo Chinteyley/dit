@@ -25,6 +25,7 @@ import type {
 export interface DecoderState {
   readonly mode: EngineMode;
   readonly alpha: number;
+  readonly startingUnit: number;
   readonly estimates: Estimates;
   readonly switchDown: boolean;
   /** Non-null iff switchDown. */
@@ -70,10 +71,11 @@ function unchanged(state: DecoderState): StepResult {
   return { state, events: NO_EVENTS };
 }
 
-function initialState(mode: EngineMode, alpha: number, estimates: Estimates): DecoderState {
+function initialState(mode: EngineMode, alpha: number, estimates: Estimates, startingUnit: number): DecoderState {
   return {
     mode,
     alpha,
+    startingUnit,
     estimates,
     switchDown: false,
     pressStart: null,
@@ -111,7 +113,7 @@ export function deadlineOf(state: DecoderState): number | null {
   if (state.switchDown || state.lastRelease === null) {
     return null;
   }
-  const limits = thresholds(state.estimates);
+  const limits = thresholds(state.estimates, state.startingUnit);
   if (state.buffer !== '') {
     return state.lastRelease + limits.letterGapThreshold;
   }
@@ -125,7 +127,7 @@ function press(state: DecoderState, t: number): StepResult {
   if (state.switchDown) {
     return unchanged(state); // Req 2.4: lastT is not advanced
   }
-  const settled = settleGaps({ ...state, lastT: t }, t, thresholds(state.estimates));
+  const settled = settleGaps({ ...state, lastT: t }, t, thresholds(state.estimates, state.startingUnit));
   return {
     state: { ...settled.state, switchDown: true, pressStart: t },
     events: settled.events,
@@ -142,7 +144,7 @@ function release(state: DecoderState, t: number): StepResult {
     return { state: up, events: NO_EVENTS }; // Req 2.3: lastRelease, buffer and estimates unchanged
   }
   // Classify with the thresholds held before this release adapts anything (Req 1.10, 8.4).
-  const limits = thresholds(state.estimates);
+  const limits = thresholds(state.estimates, state.startingUnit);
   const symbol: MorseSymbol = t >= pressStart + limits.dotDashThreshold ? '-' : '.';
   const estimates =
     state.mode === 'adaptive'
@@ -169,7 +171,7 @@ function tick(state: DecoderState, t: number): StepResult {
   if (state.switchDown) {
     return { state: advanced, events: NO_EVENTS }; // Req 7.4
   }
-  return settleGaps(advanced, t, thresholds(state.estimates));
+  return settleGaps(advanced, t, thresholds(state.estimates, state.startingUnit));
 }
 
 /**
@@ -271,7 +273,7 @@ export function createEngine(config?: EngineConfig): Result<Engine, readonly Eng
       : { dotEstimate: startingUnit, dashEstimate: 3 * startingUnit },
   );
   const mode: EngineMode = settings.mode === 'fixed' ? 'fixed' : 'adaptive';
-  let state = initialState(mode, adaptationRate ?? DEFAULT_ADAPTATION_RATE, estimates);
+  let state = initialState(mode, adaptationRate ?? DEFAULT_ADAPTATION_RATE, estimates, startingUnit);
 
   const run = (input: EngineInput): readonly EngineEvent[] => {
     const result = step(state, input);
@@ -287,7 +289,7 @@ export function createEngine(config?: EngineConfig): Result<Engine, readonly Eng
       run({ type: 'reset' });
     },
     nextDeadline: () => deadlineOf(state),
-    estimates: () => thresholds(state.estimates),
+    estimates: () => thresholds(state.estimates, state.startingUnit),
     mode,
     snapshot: () => state,
   };

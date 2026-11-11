@@ -246,3 +246,11 @@ Every correctness property from `design.md` is its own sub-task, implemented as 
   ]
 }
 ```
+
+
+## Review correction: separate pressing speed from pause speed (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+- [x] 17.1 Compute letter and word gap thresholds as 2 and 4.5 times max(dotEstimate, 1200 / startingWpm), while dot/dash classification continues to use calibrated/adapted press estimates. Deadlines and every gap comparison use the same floor.
+  - Verified: `timing.prop.test.ts; deadline/jitter/roundtrip/reset/tick-independence properties`.

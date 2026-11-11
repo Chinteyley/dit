@@ -37,7 +37,7 @@ describe('roundtrip properties', () => {
           ...(CHARACTER_TABLE[char] ?? ''),
         ]);
         for (const sequence of [inputs, withTicks]) {
-          const engine = engineFor({ mode: 'fixed', initialDotEstimate: unit, initialDashEstimate: 3 * unit });
+          const engine = engineFor({ mode: 'fixed', startingWpm: 20, initialDotEstimate: unit, initialDashEstimate: 3 * unit });
           const { events } = feed(engine, sequence);
           expect(decodedText(events)).toBe(normalized);
           const symbols = events.flatMap((event) => (event.type === 'symbol' ? [event.symbol] : []));

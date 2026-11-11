@@ -24,13 +24,14 @@ export function unitToWpm(unit: number): number {
   return PARIS_MS / unit;
 }
 
-export function thresholds(e: Estimates): EstimateSnapshot {
+export function thresholds(e: Estimates, startingUnit = DEFAULT_UNIT): EstimateSnapshot {
+  const gapUnit = Math.max(e.dotEstimate, startingUnit);
   return {
     dotEstimate: e.dotEstimate,
     dashEstimate: e.dashEstimate,
     dotDashThreshold: (e.dotEstimate + e.dashEstimate) / 2,
-    letterGapThreshold: 2 * e.dotEstimate,
-    wordGapThreshold: 4.5 * e.dotEstimate,
+    letterGapThreshold: 2 * gapUnit,
+    wordGapThreshold: 4.5 * gapUnit,
   };
 }
 

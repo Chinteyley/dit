@@ -43,6 +43,7 @@ describe('reset properties', () => {
           );
           const fresh = engineFor({
             mode: before.mode,
+            startingWpm: config.startingWpm ?? 6,
             adaptationRate: before.alpha,
             initialDotEstimate: before.estimates.dotEstimate,
             initialDashEstimate: before.estimates.dashEstimate,

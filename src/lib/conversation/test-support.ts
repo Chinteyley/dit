@@ -639,6 +639,7 @@ export function createFakeEngine(config: EngineConfig = {}, script: EngineScript
     snapshot: (): DecoderState => ({
       mode: fake.mode,
       alpha: 0.15,
+      startingUnit: 200,
       estimates: { dotEstimate: FAKE_ESTIMATES.dotEstimate, dashEstimate: FAKE_ESTIMATES.dashEstimate },
       switchDown: false,
       pressStart: null,

@@ -16,7 +16,7 @@ const caseArb = fc
   .tuple(modeArb, fc.double({ min: 60, max: 600, noNaN: true }))
   .chain(([mode, unit]) =>
     fc.record({
-      config: fc.constant({ mode, initialDotEstimate: unit, initialDashEstimate: 3 * unit }),
+      config: fc.constant({ mode, startingWpm: 20, initialDotEstimate: unit, initialDashEstimate: 3 * unit }),
       unit: fc.constant(unit),
       inputs: inputSequenceArb({ durationScale: unit }),
       word: wordArb,
@@ -59,7 +59,7 @@ describe('space properties', () => {
               expect(spacesSinceRelease).toBe(1);
               expect(input.type === 'press' || input.type === 'tick').toBe(true);
               expect(before.lastRelease).not.toBeNull();
-              const wordGap = thresholds(before.estimates).wordGapThreshold;
+              const wordGap = thresholds(before.estimates, before.startingUnit).wordGapThreshold;
               expect(input.t >= (before.lastRelease ?? Infinity) + wordGap).toBe(true);
               expect(index).toBe(events.length - 1);
               charSinceSpace = false;

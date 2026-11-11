@@ -42,7 +42,7 @@ describe('tick independence properties', () => {
           feed(probe, inputs);
           const state = probe.snapshot();
           const deadline =
-            state.lastRelease === null ? 0 : state.lastRelease + 4.5 * state.estimates.dotEstimate;
+            state.lastRelease === null ? 0 : state.lastRelease + 4.5 * Math.max(state.estimates.dotEstimate, state.startingUnit);
           const finalTick: EngineInput = { type: 'tick', t: Math.max(deadline, state.lastT ?? 0) + extra };
 
           const plain = engineFor(config);

@@ -178,7 +178,7 @@ describe('decoder properties', () => {
         ),
         fc.constantFrom('tick', 'press'),
         (pattern, unit, silence, trigger) => {
-          const engine = engineFor({ mode: 'fixed', initialDotEstimate: unit, initialDashEstimate: 3 * unit });
+          const engine = engineFor({ mode: 'fixed', startingWpm: 20, initialDotEstimate: unit, initialDashEstimate: 3 * unit });
           const { letterGapThreshold: LG, wordGapThreshold: WG } = engine.estimates();
           const { lastRelease } = keySymbols(engine, [...pattern], unit);
           expect(engine.snapshot().buffer).toBe(pattern);

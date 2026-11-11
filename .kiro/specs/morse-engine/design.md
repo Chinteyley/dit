@@ -825,3 +825,10 @@ Each test starts with its tag comment, for example:
 ### Performance budget
 
 Property 20 and 21 at 200 runs with up to 200 characters stay well below 1 s each in Node, because each run is a few thousand `step` calls. If the full engine suite exceeds about 10 s, lower `maxLength` for the slowest generators before lowering `numRuns`.
+
+
+## Review correction: separate pressing speed from pause speed (review, 2026-11-11)
+
+These corrections supersede earlier conflicting criteria in this document.
+
+Keep startingUnit in DecoderState across reset/adaptation. Pass it to thresholds for deadlines, settlement and estimates. Fixed-speed jitter tests with seeded estimates must configure a matching starting speed (or a faster one) when testing units outside the starting-WPM range.
