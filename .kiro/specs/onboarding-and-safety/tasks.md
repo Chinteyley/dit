@@ -561,3 +561,5 @@ These corrections supersede earlier conflicting criteria in this document.
 - [x] 25.4 Stack non-modal setup above codes and cancel re-run Practice/Legend on Escape; verify component behavior.
 - [x] 25.5 Show Commands first, remove fixed paging cap, add partner page buttons and polite page status, retain single-input paging; verify panel capacities and code reachability.
 - [x] 25.6 Rewrite last-round review requirements in conditional EARS form.
+- [x] 24.1 Replace the too-small band fallback with a bottom sheet sized to the panel (at most 72% of the viewport) and let the panel content scroll inside the dialog (Requirement 24.1); verified at 320×568 to 1920×1080, 852×393 and 667×375.
+- [x] 24.2 Compact Practice_Step layout at 480 px tall or less (Requirement 24.2).
