@@ -219,7 +219,7 @@ Out of scope: anything the brief lists as out of scope (including a Morse traini
 
 #### Acceptance Criteria
 
-1. THE Cheat_Sheet SHALL build the Cheat_Sheet_Model from the Character_Table and the Command_Table each time the Cheat_Sheet opens, with no hard-coded copy of either table, and the Cheat_Sheet_Model SHALL contain exactly four groups in this order: "Letters", "Digits", "Punctuation", "Commands".
+1. THE Cheat_Sheet SHALL build the Cheat_Sheet_Model from the Character_Table and the Command_Table each time the Cheat_Sheet opens, with no hard-coded copy of either table, and the Cheat_Sheet_Model SHALL contain exactly four groups in this order: "Commands", "Letters", "Digits", "Punctuation".
 2. THE Cheat_Sheet_Model SHALL list the 26 letters `a` to `z` in alphabetical order in "Letters", the 10 digits `0` to `9` in ascending order in "Digits", the 13 punctuation characters in "Punctuation" in the same order as the Character_Table, and the 4 Command_Codes in "Commands" in the order speak, next, backspace, sos.
 3. FOR ALL entries in the Character_Table, THE Cheat_Sheet_Model SHALL contain exactly one character entry whose character and code equal that Character_Table entry, and the Cheat_Sheet_Model SHALL contain exactly 49 character entries across "Letters", "Digits" and "Punctuation".
 4. FOR ALL entries in the Command_Table, THE Cheat_Sheet_Model SHALL contain exactly one "Commands" entry whose code and command equal that Command_Table entry, and SHALL contain no other "Commands" entry.
@@ -399,10 +399,18 @@ Out of scope: anything the brief lists as out of scope (including a Morse traini
 
 These corrections supersede earlier conflicting criteria in this document.
 
-24.1. THE app SHALL satisfy: Close the cheat sheet on any committed character or command regardless of open reason. Every code must be reachable without scrolling: use a dense viewport layout or single-input paging at 1280×800, 820×1180 and 393×852.
-24.2. THE app SHALL satisfy: After five calibration presses, Speak (.-.-.) or a further press followed by a letter gap accepts the measured/default speed. Defer acceptance until a pattern commits, giving SOS priority. Rebuild the guard with accepted timing so Speak finishes the legend even when calibration is much faster than Starting WPM. Preserve the five-duration cap.
-24.3. THE app SHALL satisfy: Finishing setup with key/tap or blink disables switch input and clears the learned switch key. Apply the same source selection when restoring a completed record.
-24.4. THE app SHALL satisfy: Cancelling rerun restores the timing estimates that were in effect before setup, even after accepting a new calibration; leave the persisted record unchanged.
-24.5. THE app SHALL satisfy: On reload with saved blink input, automatically resume only if the Permissions API reports camera permission granted; prompt/denied/unsupported states retain the explicit camera action.
+24.1. WHEN any character or command commits, THE Cheat_Sheet SHALL close regardless of open reason; WHEN codes exceed the available panel space, THE sheet SHALL provide single-input paging so every code is reachable at 1280×800, 820×1180 and 393×852 without scrolling.
+24.2. WHEN a measured or default practice result is chosen and Speak commits or a further press reaches a letter gap, THE Onboarding_Controller SHALL accept that result after checking SOS; WHEN timing is accepted, THE controller SHALL rebuild the guard with that timing so Speak can finish the legend; WHILE a result is chosen, THE reducer SHALL stop recording durations and preserve the five-duration cap.
+24.3. WHEN Key/tap or Blink is selected in the input step, THE Onboarding_Controller SHALL immediately disable switch input and clear its active and persisted learned key; WHEN a completed non-switch record is restored, THE controller SHALL apply the same source selection.
+24.4. WHEN re-run setup is cancelled, THE Onboarding_Controller SHALL restore pre-setup timing, source flags, active switch key and persisted switch key and leave the onboarding record unchanged.
+24.5. WHEN a saved Blink choice loads and camera permission is granted, THE Input_Layer SHALL resume the camera; IF permission is prompt, denied or unsupported, THE app SHALL retain the explicit camera action.
 
 Review integration detail: setup cancellation snapshots the session engine’s current adapted estimates through getEstimates(), rather than rereading storage. Practice and Legend are non-modal panels beside the keying surface; focus returns to that surface for Speak-code acceptance/Start. Learning a switch re-enables its source after a previous key/tap or blink choice disabled it.
+
+### Requirement 25: Round-2 setup safety and code access
+
+25.1. WHEN the guard commits s, o, s as its last characters, including intervening word gaps, THE Onboarding_Controller SHALL raise the alarm before applying confirmation and clear its SOS tracking after the alarm or setup closes.
+25.2. WHEN Use default speed is chosen, THE flow SHALL focus the keying surface, stop practice recording, hide the practice prompt and allow single-input acceptance even with fewer than five durations.
+25.3. WHILE Practice or Legend is non-modal, THE onboarding panel SHALL stack above the cheat sheet; WHEN Escape is pressed during either step of a re-run without an active modal, THE flow SHALL cancel setup.
+25.4. WHEN the cheat sheet opens, THE sheet SHALL list Commands first in Speak, Next suggestion, Delete, SOS order, size pages to the available panel without an eight-entry cap, and show all codes together when they fit.
+25.5. WHILE the cheat sheet is open, THE sheet SHALL provide visible Previous and Next buttons and a polite live announcement of Page X of Y, and SHALL retain six-dot single-input paging.

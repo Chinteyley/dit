@@ -64,6 +64,8 @@ it('disables and clears switch input when finishing or restoring another input',
     controller.attach(api);
     controller.dispatch({ type: 'choose', choice });
     if (choice === 'blink') { controller.dispatch({ type: 'camera-on' }); controller.dispatch({ type: 'blink-status', status: 'active' }); }
+    expect(sources.enabled().switch).toBe(false);
+    expect(cleared).toBe(1);
     for (const type of ['continue', 'use-default', 'continue', 'start'] as const) controller.dispatch({ type });
     expect(sources.enabled().switch).toBe(false);
     expect(cleared).toBe(1);

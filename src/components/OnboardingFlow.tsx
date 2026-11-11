@@ -1,4 +1,4 @@
-import { useContext, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   CANCEL_SETUP_LABEL,
   STEP_HEADINGS,
@@ -79,6 +79,18 @@ export function OnboardingFlow({ state, dispatch, startingWpm, id }: OnboardingF
     if (step === 'legend') focusKeyingSurface();
   }, [step, focusKeyingSurface]);
 
+  useEffect(() => {
+    if (!pressable || !rerun) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('dialog:modal') !== null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dispatch({ type: 'cancel' });
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [pressable, rerun, dispatch]);
+
   if (step === null) return null;
 
   const placed =
@@ -112,7 +124,7 @@ export function OnboardingFlow({ state, dispatch, startingWpm, id }: OnboardingF
       style={placed}
       className={
         pressable
-          ? 'pointer-events-none fixed m-0 max-w-none overflow-hidden bg-transparent p-4 text-text'
+          ? 'pointer-events-none fixed z-30 m-0 max-w-none overflow-hidden bg-transparent p-4 text-text'
           : 'm-auto max-h-dvh w-[min(100%,42rem)] max-w-none overflow-y-auto bg-transparent p-4 text-text backdrop:bg-bg/85'
       }
     >

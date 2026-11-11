@@ -154,13 +154,14 @@ function inputStep(s: OnboardingState, a: OnboardingAction): OnboardingState {
 function practiceStep(s: OnboardingState, a: OnboardingAction): OnboardingState {
   switch (a.type) {
     case 'press': {
+      if (s.result.kind !== 'none') return s;
       if (a.kind === 'down') {
         return s.heldDownT === null && s.durations.length < PRACTICE_PRESSES ? { ...s, heldDownT: a.t } : s;
       }
       if (s.heldDownT === null) return s; // 14.8: an up without a down from this Practice_Step
       const durations = [...s.durations, a.t - s.heldDownT];
       if (durations.length < PRACTICE_PRESSES) return { ...s, durations, heldDownT: null };
-      // 15.1: calibrate() exactly once, on the fifth duration; the newest outcome wins (15.4).
+      // 15.1: calibrate() exactly once, on the fifth duration before a result is chosen.
       const calibration = calibrate(durations);
       const result: PracticeResult =
         calibration.reason === null ? { kind: 'measured', calibration } : { kind: 'default', calibration };
@@ -168,7 +169,7 @@ function practiceStep(s: OnboardingState, a: OnboardingAction): OnboardingState 
     }
     case 'use-default':
       // 14.11, 14.12: the default estimates, no Calibration held, and no duration added.
-      return s.result.kind === 'default' && s.result.calibration === null ? s : { ...s, result: DEFAULT_SPEED };
+      return s.result.kind === 'default' && s.result.calibration === null ? s : { ...s, result: DEFAULT_SPEED, heldDownT: null };
     case 'practice-again':
       return heldCalibration(s.result) === null ? s : practiceCleared(s);
     case 'use-this-speed': {
@@ -229,6 +230,7 @@ export function onboardingEffects(
       if (choice !== 'switch' && prev.switchPhase.kind === 'armed') effects.push(DISARM);
       if (choice !== 'blink' && blinkRunning(prev)) effects.push(STOP_BLINK);
       if (choice === 'switch') effects.push(ARM);
+      else effects.push({ type: 'clear-switch' });
       return effects;
     }
     case 'switch-retry':
@@ -238,6 +240,7 @@ export function onboardingEffects(
     case 'continue':
       if (prev.step === 'input') return [FOCUS_SURFACE];
       return next.applied === 'unset' ? NO_EFFECTS : [{ type: 'apply-estimates', estimates: next.applied }];
+    case 'use-default':
     case 'practice-again':
       return [FOCUS_SURFACE];
     case 'use-this-speed':
@@ -260,7 +263,7 @@ export function continueEnabled(s: OnboardingState): boolean {
 
 /** "Holding…" next to the practice row while a press is down and fewer than 5 are collected (14.7). */
 export function heldIndicatorShown(s: OnboardingState): boolean {
-  return s.step === 'practice' && s.heldDownT !== null && s.durations.length < PRACTICE_PRESSES;
+  return s.step === 'practice' && s.result.kind === 'none' && s.heldDownT !== null && s.durations.length < PRACTICE_PRESSES;
 }
 
 /**
@@ -270,7 +273,7 @@ export function heldIndicatorShown(s: OnboardingState): boolean {
 export function practicePrompt(
   s: OnboardingState,
 ): { readonly prompt: typeof PRESS_SHORT | typeof PRESS_LONG; readonly count: string } | null {
-  if (s.step !== 'practice') return null;
+  if (s.step !== 'practice' || s.result.kind !== 'none') return null;
   const n = s.durations.length;
   if (n >= PRACTICE_PRESSES) return null;
   return { prompt: n < 3 ? PRESS_SHORT : PRESS_LONG, count: practiceCountText(Math.min(n, 4) + 1) };

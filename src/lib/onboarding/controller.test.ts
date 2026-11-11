@@ -387,7 +387,7 @@ describe('Run setup again and Cancel setup', () => {
     r.controller.runSetupAgain();
     expect(r.state()).toMatchObject({ selected: 'blink', inputChoice: 'blink' });
     r.act({ type: 'choose', choice: 'key-tap' }); // stops the camera
-    expect(sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }, { kind: 'stopBlink' }]);
+    expect(sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }, { kind: 'stopBlink' }, { kind: 'setEnabled', source: 'switch', on: false }]);
     r.act({ type: 'cancel' });
     expect(sources.calls.at(-1)).toEqual({ kind: 'restore', flags: { ...DEFAULT_ENABLED_SOURCES, switch: false, blink: true } });
     expect(r.controller.isOpen()).toBe(false);
@@ -441,9 +441,9 @@ describe('Switch and Blink choices', () => {
     const r = rig();
     r.attach();
     r.act({ type: 'choose', choice: 'blink' });
-    expect(r.sources.calls).toEqual([]);
+    expect(r.sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }]);
     r.act({ type: 'camera-on' });
-    expect(r.sources.calls).toEqual([{ kind: 'startBlink' }]);
+    expect(r.sources.calls).toEqual([{ kind: 'setEnabled', source: 'switch', on: false }, { kind: 'startBlink' }]);
     r.sources.setStatus('blink', 'starting');
     r.sources.setStatus('blink', 'active');
     expect(r.state()).toMatchObject({ inputChoice: 'blink', blinkPhase: { kind: 'started', status: 'active' } });
@@ -514,4 +514,66 @@ it('restores the previous calibration after accepting a new speed then cancellin
     expect(r.log.at(-2)).toBe('estimates:{"dotEstimate":90,"dashEstimate":270}');
     expect(writesOf(r.backend)).toEqual([]);
   }), { numRuns: 200 });
+});
+
+// Feature: onboarding-and-safety, round 2: committed letters retain SOS priority.
+it.each(['press', 'tick'] as const)('raises onboarding SOS from pause-split letters committed by %s', (kind) => {
+  fc.assert(fc.property(fc.constantFrom('input', 'practice', 'legend'), (step) => {
+    const r = rig();
+    r.attach();
+    if (step !== 'input') r.act({ type: 'choose', choice: 'key-tap' }, { type: 'continue' });
+    if (step === 'legend') r.act({ type: 'use-default' }, { type: 'continue' });
+    const engine = r.engines.current();
+    for (const [i, letter] of [...'sos'].entries()) {
+      const events: EngineEvent[] = [{ type: 'char', char: letter }, { type: 'space' }];
+      engine.script(kind, events);
+      if (kind === 'press') {
+        r.press('down', 1000 + i * 1000);
+        r.press('up', 1100 + i * 1000);
+      } else {
+        engine.deadline = 1000 + i * 1000;
+        r.press('down', 500 + i * 1000);
+        r.press('up', 600 + i * 1000);
+        r.advance(1000 + i * 1000);
+      }
+    }
+    expect(r.alarmStarts).toHaveLength(1);
+    expect(r.state()?.step).toBe(step);
+  }), { numRuns: 200 });
+});
+
+it('accepts default speed with Speak before five practice durations', () => {
+  const r = rig();
+  r.attach();
+  r.act({ type: 'choose', choice: 'key-tap' }, { type: 'continue' }, { type: 'use-default' });
+  const engine = r.engines.current();
+  engine.script('tick', [{ type: 'command', command: 'speak' }]);
+  engine.deadline = 1000;
+  r.press('down', 100);
+  r.press('up', 300);
+  expect(r.state()?.durations).toEqual([]);
+  r.advance(1000);
+  expect(r.state()?.step).toBe('legend');
+});
+
+it('restores both switch keys on cancel after relearning or choosing another input', async () => {
+  for (const choice of ['switch', 'key-tap', 'blink'] as const) {
+    const learner = createFakeSwitchLearner({ active: 'KeyJ', stored: 'KeyK' });
+    const r = rig({ stored: COMPLETE, learner });
+    r.attach();
+    r.controller.runSetupAgain();
+    r.act({ type: 'choose', choice });
+    if (choice === 'switch') {
+      learner.resolve(ok('KeyQ'));
+      await settle();
+      expect(learner.snapshot()).toEqual({ active: 'KeyQ', stored: 'KeyQ' });
+    } else {
+      expect(r.sources.enabled().switch).toBe(false);
+      expect(learner.snapshot()).toEqual({ active: null, stored: null });
+    }
+    r.act({ type: 'cancel' });
+    expect(learner.snapshot()).toEqual({ active: 'KeyJ', stored: 'KeyK' });
+    expect(r.sources.enabled().switch).toBe(true);
+    expect(writesOf(r.backend)).toEqual([]);
+  }
 });

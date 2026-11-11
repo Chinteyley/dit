@@ -98,7 +98,9 @@ describe('Onboarding_Reducer properties', () => {
           if (startsPractice(step)) {
             held = null;
             pairs = [];
-          } else if (prev.step === 'practice' && action.type === 'press') {
+          } else if (prev.step === 'practice' && action.type === 'use-default') {
+            held = null;
+          } else if (prev.step === 'practice' && prev.result.kind === 'none' && action.type === 'press') {
             // A Press_Pair: a down received in this Practice_Step and the next up.
             if (action.kind === 'down') {
               if (held === null && pairs.length < 5) held = action.t;

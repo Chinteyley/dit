@@ -51,7 +51,7 @@ One more cross-spec note: `conversation-ui` keeps exactly one `aria-live` region
 ### Interpretations of the requirements
 
 - Requirement 12.2 keeps the Session_Engine estimates unchanged by presses during onboarding. The single `setInitialEstimates` call from "Use this speed" or Continue (Requirement 15.6, 15.7) is the intended change and is allowed.
-- Requirement 17.4 says the reducer holds `calibrate()` of 5 collected presses. Requirement 14.11 discards the Calibration_Result on "Use default speed". The design applies 14.11 as the later action: after "Use default speed" no Calibration is held. If fewer than 5 presses were collected when the Partner chose it, a later fifth press still calls `calibrate()` (Requirement 15.1) and its result replaces the default result. Property 20 states the rule with this exception.
+- Requirement 17.4 says the reducer holds `calibrate()` of 5 collected presses. Requirement 14.11 discards the Calibration_Result on "Use default speed". The design applies 14.11 as the later action: after "Use default speed" no Calibration is held. Choosing a result freezes recording, so later Morse confirms the result instead of replacing it.
 - The Done step has a heading (Requirement 18.2), but the flow closes within the same task after Start (Requirement 16.5). The Done view is rendered for that frame and is checked in an isolated component test.
 
 ## Architecture
@@ -586,16 +586,16 @@ Reducer rules. Any action not listed for the current step returns `s` unchanged 
 | input | `camera-on` | blink phase explained, or started with a failure status other than `unsupported` | `blinkPhase = started('starting')` | `start-blink` (13.8, 13.10) |
 | input | `blink-status x` | `selected = 'blink'` and phase started | `status = x`; `inputChoice = 'blink'` iff `x ∈ {active, face-lost}`, else null | none (13.9, 13.10) |
 | input | `continue` | `inputChoice !== null` | `step = practice`, practice cleared | `focus-keying-surface` (13.12, 13.13, 14.1) |
-| practice | `press down t` | `durations.length < 5` and `heldDownT = null` | `heldDownT = t` | none |
-| practice | `press up t` | `heldDownT !== null` | `durations += [t − heldDownT]`, `heldDownT = null`; at length 5, `result = measured(c)` if `c = calibrate(durations)` has `reason === null`, else `default(c)` | none (14.3, 14.8, 15.1, 15.4) |
-| practice | `use-default` | none | `result = default(null)` | none (14.11, 14.12) |
+| practice | `press down t` | `result = none`, `durations.length < 5` and `heldDownT = null` | `heldDownT = t` | none |
+| practice | `press up t` | `result = none` and `heldDownT !== null` | `durations += [t − heldDownT]`, `heldDownT = null`; at length 5, `result = measured(c)` if `c = calibrate(durations)` has `reason === null`, else `default(c)` | none (14.3, 14.8, 15.1, 15.4) |
+| practice | `use-default` | none | `result = default(null)`, `heldDownT = null` | `focus-keying-surface` (14.11, 14.12) |
 | practice | `practice-again` | result holds a Calibration (`measured`, or `default` with non-null calibration) | practice cleared | `focus-keying-surface` (15.5, 14.1) |
 | practice | `use-this-speed` | `result = measured` | `applied = {dot, dash}`, `step = legend` | `apply-estimates(estimates)` (15.6) |
 | practice | `continue` | `result = default` | `applied = null`, `step = legend` | `apply-estimates(null)` (15.7) |
 | legend | `start` | none | `step = done`, `report = { complete: true, inputChoice, estimates: applied }` | `finish(report)`, `focus-keying-surface` (16.4, 16.5) |
 | input / practice / legend | `cancel` | `origin = rerun` | `step = cancelled` | `disarm-learner`, `cancel`, `focus-keying-surface` (11.9) |
 
-"Practice cleared" means `durations = []`, `heldDownT = null`, `result = none`. A `press` in the input or legend step changes nothing; those presses still go to the Guard_Engine (Requirement 12.3). If "Use default speed" is chosen before 5 presses and the Speaker keeps pressing, the fifth press calls `calibrate()` (Requirement 15.1) and the measured result replaces the default result; the most recent outcome wins. Because the step leaves `practice` on the first accepted `use-this-speed` or `continue`, a repeated activation is an invalid action and a no-op (Requirement 15.8). Because `done` accepts nothing, a repeated `start` is a no-op and `finish` is emitted once (Requirement 16.7, 17.9).
+"Practice cleared" means `durations = []`, `heldDownT = null`, `result = none`. A `press` in the input or legend step changes nothing; those presses still go to the Guard_Engine (Requirement 12.3). Once a result is chosen, further presses go only to guard confirmation; durations and the chosen result stay unchanged. Because the step leaves `practice` on the first accepted `use-this-speed` or `continue`, a repeated activation is an invalid action and a no-op (Requirement 15.8). Because `done` accepts nothing, a repeated `start` is a no-op and `finish` is emitted once (Requirement 16.7, 17.9).
 
 `practicePrompt`: with `n = durations.length`, prompt is "Press short" for `n < 3`, "Press long" for `n ≥ 3`; count is `"Press " + (min(n, 4) + 1) + " of 5"` for `n < 5`. At `n = 5` the count is hidden and the result area is shown (Requirement 14.1, 14.5, 14.6).
 
@@ -1018,7 +1018,7 @@ Test: `src/lib/onboarding/flow.prop.test.ts`
 
 ### Property 19: Only the first 5 Practice_Presses since the latest Practice_Step start count
 
-*For any* sequence of actions that reaches the Practice_Step, including arbitrary `press` actions (down/up with non-decreasing timestamps, unmatched ups, and ups whose down came before a restart), `use-default` actions and restarts: `durations` holds at most 5 values; it equals the first `min(5, n)` values of `up.t − down.t` for the Press_Pairs whose `down` arrived after the latest Practice_Step start, in order, including 0 ms durations; `use-default` never changes `durations`; and `heldIndicatorShown` is true exactly when a `down` from this Practice_Step is unmatched and fewer than 5 durations are held.
+*For any* sequence of actions that reaches the Practice_Step, including arbitrary `press` actions (down/up with non-decreasing timestamps, unmatched ups, and ups whose down came before a restart), `use-default` actions and restarts: `durations` holds at most 5 values; it equals the first `min(5, n)` values of `up.t − down.t` for the Press_Pairs whose `down` arrived after the latest Practice_Step start and before a result was chosen, in order, including 0 ms durations; `use-default` never changes `durations`; and `heldIndicatorShown` is true exactly when a `down` from this Practice_Step is unmatched, no result is chosen and fewer than 5 durations are held.
 
 **Validates: Requirements 17.3, 14.1, 14.3, 14.7, 14.8, 14.9, 14.12**
 
@@ -1273,3 +1273,11 @@ These corrections supersede earlier conflicting criteria in this document.
 Committed commands share the sheet-close notification. Use at most eight entries per page, reducing the page size for shorter placement bands. Six dots (an unknown pattern) advances and wraps pages; every character and command is included. onCodeCommitted closes either opening on a character or command. After five presses, a decoded Speak or a committed pattern following a further completed press derives Use this speed/Continue; another decoded Speak derives Start on the legend. Resolve guard SOS first; acceptance waits for a committed pattern, so continuous SOS cannot finish setup. Retain an estimates snapshot on rerun open and restore it on cancel. Enforce switch disabling/learner clearing at finish and restore. SafetyNotices checks camera permission once per mount, cancels stale checks on unmount and starts only an already-granted saved blink choice.
 
 Review integration detail: setup cancellation snapshots the session engine’s current adapted estimates through getEstimates(), rather than rereading storage. Practice and Legend are non-modal panels beside the keying surface; focus returns to that surface for acceptance/Start. After the fifth practice release, a further completed press arms acceptance on the next non-SOS committed pattern; this works even if Speak cannot yet be decoded at the original starting speed. Continuous SOS keeps priority. Applying accepted estimates rebuilds the guard for Speak on the legend. Learning a switch re-enables its source after a previous key/tap or blink choice disabled it.
+
+Round 2 setup corrections:
+
+- Keep a three-character SOS suffix on the guard, ignoring spaces. Check it in both press and timer paths before confirmation; clear it on open/close/alarm, retaining it across an accepted-timing rebuild.
+- Snapshot the learner's active and stored keys when setup opens. Add snapshot/restore at the existing learner boundary; cancel restores source flags before restoring the keys so restarting a source cannot replace the saved active key. Non-switch input selection emits clear-switch immediately, including disarming an in-flight learner.
+- A chosen practice result freezes durations and clears a held practice press. Use-default returns focus and discards the old practice pattern; confirmation uses result.kind rather than duration count. Preserve SOS priority before confirmation.
+- Non-modal Practice/Legend use z-30 above the z-20 cheat sheet. A scoped capture keydown listener handles Escape during re-runs, respects an active modal or a previously prevented event, and removes itself on exit.
+- Cheat-sheet groups begin with Commands. Derive rows and columns from the placed width/height with room for headers, status, unknown pattern and navigation; no fixed entry cap. Previous/Next update the same page state as six dots; announce only Page X of Y in a polite live region.

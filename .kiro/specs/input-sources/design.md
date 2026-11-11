@@ -1189,3 +1189,5 @@ Deviations and clarifications recorded while building this spec. The code and te
 These corrections supersede earlier conflicting criteria in this document.
 
 Frame timestamps remain suitable for blink detection. Clamp at the engine boundary, where lastT is available. Query Permissions API in the browser UI and preserve manual camera fallback when unsupported or rejected.
+
+Round 2: SwitchLearner exposes snapshot/restore for setup rollback, using the existing SettingsStore and SwitchSource. Keep active and validated stored keys separate because a source can be disabled or persistence can fail. Restore reports save failure while applying the active snapshot. The build command runs `bun scripts/mediapipe-assets.ts && next build` so cached installs cannot omit wasm files. The focused cached-install fixture verifies preparing absent wasm without network; the required production build verifies the command integration.

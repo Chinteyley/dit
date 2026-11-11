@@ -117,6 +117,8 @@ export function unavailableLearner(): SwitchLearner {
       Promise.resolve(err({ reason: 'cancelled', message: NOT_AVAILABLE })),
     cancel: () => undefined,
     isArmed: () => false,
+    snapshot: () => ({ active: null, stored: null }),
+    restore: () => err({ reason: 'save-failed', message: NOT_AVAILABLE }),
     clear: () => err({ reason: 'save-failed', message: NOT_AVAILABLE }),
   };
 }

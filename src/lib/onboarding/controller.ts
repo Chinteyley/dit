@@ -17,6 +17,7 @@ import {
   type Scheduler,
   type SourceStatus,
   type SwitchLearner,
+  type SwitchKeySnapshot,
   type Unsubscribe,
 } from '@/lib/input';
 import type { Engine, EngineConfig, EngineEvent, Estimates } from '@/lib/morse';
@@ -96,8 +97,6 @@ const FOCUS_SELECTED: OnboardingEffect = Object.freeze({ type: 'focus-selected-c
 
 const isSpeak = (event: EngineEvent): boolean => event.type === 'command' && event.command === 'speak';
 
-const isSos = (event: EngineEvent): boolean => event.type === 'command' && event.command === 'sos';
-
 function attempt<T>(fn: () => T, fallback: T): T {
   try {
     return fn();
@@ -119,6 +118,8 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
   let estimatesInEffect: Estimates | null = null;
   let estimatesSnapshot: Estimates | null = null;
   let confirmationPressed = false;
+  let guardLetters = '';
+  let switchSnapshot: SwitchKeySnapshot | null = null;
   let saveFailed = false;
   /** Drops a learner result whose arm() was cancelled or replaced. */
   let learnAttempt = 0;
@@ -219,9 +220,21 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
     return guard;
   };
 
+  const hasSos = (events: readonly EngineEvent[]): boolean => {
+    for (const event of events) {
+      if (event.type === 'command' && event.command === 'sos') return true;
+      if (event.type === 'char') {
+        guardLetters = (guardLetters + event.char).slice(-3);
+        if (guardLetters === 'sos') return true;
+      } else if (event.type === 'command' || event.type === 'unknown') guardLetters = '';
+    }
+    return false;
+  };
+
   /** SOS during onboarding: the alarm starts at once; the flow keeps its step and presses (12.6, 2.11). */
   const raiseAlarm = (): void => {
     cancelGuardTimer();
+    guardLetters = '';
     try {
       deps.alarm.start();
     } catch {
@@ -257,7 +270,7 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       return;
     }
     const events = attempt(() => g.tick(safeTickTime(clock(), pending)), []);
-    if (events.some(isSos)) {
+    if (hasSos(events)) {
       raiseAlarm();
       return;
     }
@@ -269,7 +282,7 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
   const acceptCommitted = (events: readonly EngineEvent[]): void => {
     const s = state;
     const committed = events.some((event) => event.type === 'char' || event.type === 'command' || event.type === 'unknown');
-    if (s?.step === 'practice' && s.durations.length >= 5 && (events.some(isSpeak) || (confirmationPressed && committed))) {
+    if (s?.step === 'practice' && s.result.kind !== 'none' && (events.some(isSpeak) || (confirmationPressed && committed))) {
       controller.dispatch({ type: s.result.kind === 'measured' ? 'use-this-speed' : 'continue' });
     } else if (s?.step === 'legend' && events.some(isSpeak)) {
       controller.dispatch({ type: 'start' });
@@ -280,6 +293,9 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
 
   const open = (initial: OnboardingState): void => {
     const current = api;
+    confirmationPressed = false;
+    guardLetters = '';
+    switchSnapshot = attempt(() => current?.learner?.snapshot() ?? null, null);
     sourceSnapshot = current === null ? null : attempt(() => current.sources.enabled(), null);
     estimatesSnapshot = current?.getEstimates?.() ?? estimatesInEffect;
     estimatesInEffect = estimatesSnapshot;
@@ -295,6 +311,9 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
     unusedGuardConfig = null;
     state = null;
     sourceSnapshot = null;
+    switchSnapshot = null;
+    guardLetters = '';
+    confirmationPressed = false;
     learnAttempt += 1;
     tellRouter();
     publish();
@@ -330,6 +349,10 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
         learnAttempt += 1;
         attempt(() => current?.learner?.cancel(), undefined);
         return;
+      case 'clear-switch':
+        attempt(() => current?.sources.setEnabled('switch', false), undefined);
+        attempt(() => current?.learner?.clear(), undefined);
+        return;
       case 'start-blink':
         attempt(() => current?.sources.startBlink(), undefined);
         return;
@@ -358,10 +381,6 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
         // 16.6: the choice and estimates stay in effect for this page load either way.
         saveFailed = !written.ok;
         inputChoiceInEffect = effect.report.inputChoice;
-        if (inputChoiceInEffect !== 'switch') {
-          attempt(() => current?.sources.setEnabled('switch', false), undefined);
-          attempt(() => current?.learner?.clear(), undefined);
-        }
         close();
         return;
       }
@@ -372,6 +391,11 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
         }
         const snapshot = sourceSnapshot;
         if (snapshot !== null) attempt(() => current?.sources.restore(snapshot), undefined);
+        const keys = switchSnapshot;
+        if (keys !== null) {
+          const restored = attempt(() => current?.learner?.restore(keys), undefined);
+          if (restored !== undefined && !restored.ok) saveFailed = true;
+        }
         close();
         return;
       }
@@ -428,14 +452,14 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       const g = guardForPress();
       const t = e.source === 'blink' ? Math.max(e.t, g?.snapshot().lastT ?? e.t) : e.t;
       const events = g === null ? [] : attempt(() => (e.kind === 'down' ? g.press(t) : g.release(t)), []);
-      if (events.some(isSos)) {
+      if (hasSos(events)) {
         // 7.6: synchronously, before the next press is routed. The press itself is the start of
         // the alarm, so the flow keeps its state as it was (2.11, 12.6).
         raiseAlarm();
         return;
       }
       acceptCommitted(events);
-      if (state?.step === 'practice' && state.durations.length >= 5 && e.kind === 'up') confirmationPressed = true;
+      if (state?.step === 'practice' && state.result.kind !== 'none' && e.kind === 'up') confirmationPressed = true;
       controller.dispatch({ type: 'press', kind: e.kind, t: e.t });
       rescheduleGuard();
     },
@@ -444,9 +468,18 @@ export function createOnboardingController(deps: OnboardingControllerDeps): Onbo
       const prev = state;
       if (prev === null) return;
       const next = onboardingStep(prev, a);
-      if (next === prev) return;
+      if (next === prev) {
+        if (prev.step === 'practice' && a.type === 'use-default') runEffect({ type: 'focus-keying-surface' });
+        return;
+      }
       state = next;
-      if (next.step !== 'practice' || next.durations.length < 5) confirmationPressed = false;
+      if (a.type === 'use-default') {
+        cancelGuardTimer();
+        guard?.reset();
+        guardLetters = '';
+        confirmationPressed = false;
+      }
+      if (next.step !== 'practice' || next.result.kind === 'none') confirmationPressed = false;
       for (const effect of onboardingEffects(prev, next, a)) runEffect(effect);
       publish();
     },

@@ -81,3 +81,23 @@ describe('Switch_Learner properties', () => {
     );
   });
 });
+
+// Feature: input-sources, round 2: setup rollback restores both key values.
+it('restores active and persisted keys independently after relearning or clearing', async () => {
+  await fc.assert(fc.asyncProperty(fc.constantFrom(null, 'KeyJ', 'F13'), fc.constantFrom(null, 'KeyK'), fc.boolean(), async (stored, active, clear) => {
+    const rig = createKeyRig({ storedKey: stored });
+    rig.switchSource.start();
+    rig.switchSource.setLearnedKey(active);
+    const snapshot = rig.learner.snapshot();
+    if (clear) rig.learner.clear();
+    else {
+      const pending = rig.learner.arm();
+      rig.target.down('KeyQ');
+      await pending;
+      rig.target.up('KeyQ');
+    }
+    expect(rig.learner.restore(snapshot).ok).toBe(true);
+    expect(rig.switchSource.learnedKey()).toBe(active);
+    expect(rig.store.value ?? null).toBe(stored);
+  }), { numRuns: PROP_RUNS });
+});

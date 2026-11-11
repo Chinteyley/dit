@@ -170,6 +170,14 @@ export function useInputSources(opts: UseInputSourcesOptions): UseInputSourcesRe
       },
       cancel: () => rigRef.current?.learner.cancel(),
       isArmed: () => rigRef.current?.learner.isArmed() ?? false,
+      snapshot: () => rigRef.current?.learner.snapshot() ?? { active: null, stored: null },
+      restore(snapshot) {
+        const rig = rigRef.current;
+        if (rig === null) return err({ reason: 'save-failed', message: 'The switch key could not be restored yet.' });
+        const result = rig.learner.restore(snapshot);
+        refreshLearnedKey();
+        return result;
+      },
       clear() {
         const rig = rigRef.current;
         if (rig === null) return err({ reason: 'save-failed', message: 'The switch key could not be cleared yet.' });

@@ -145,3 +145,32 @@ describe('OnboardingFlow', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keying surface' }));
   });
 });
+
+it.each(['practice', 'legend'] as const)('Escape from the keying surface cancels a non-modal rerun on %s', (step) => {
+  const rig = renderOnboarding({ record: COMPLETE });
+  act(() => {
+    rig.controller.runSetupAgain();
+    rig.controller.dispatch({ type: 'continue' });
+    if (step === 'legend') {
+      rig.controller.dispatch({ type: 'use-default' });
+      rig.controller.dispatch({ type: 'continue' });
+    }
+  });
+  const surface = screen.getByRole('button', { name: 'Keying surface' });
+  surface.focus();
+  fireEvent.keyDown(surface, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(surface);
+});
+
+it('returns focus to the keying surface after choosing default speed', async () => {
+  renderOnboarding();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Key or tap' }));
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  await user.click(screen.getByRole('button', { name: 'Use default speed' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keying surface' }));
+  expect(screen.queryByText('Press 1 of 5')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Use default speed' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keying surface' }));
+});

@@ -62,7 +62,7 @@ export type { PageLifecycle } from './source-base';
 export { RESERVED_KEYS, createSwitchSource, isReservedKey, validateSwitchKey } from './switch';
 export type { SwitchSource } from './switch';
 export { createSwitchLearner } from './switch-learner';
-export type { LearnError, SwitchLearner } from './switch-learner';
+export type { LearnError, SwitchKeySnapshot, SwitchLearner } from './switch-learner';
 export { FAILURE_STATUSES, SOURCE_KINDS, err, isFailureStatus, ok, pressEvent } from './types';
 export type {
   FailureStatus,

@@ -80,6 +80,7 @@ export type OnboardingAction =
 export type OnboardingEffect =
   | { readonly type: 'arm-learner' }
   | { readonly type: 'disarm-learner' }
+  | { readonly type: 'clear-switch' }
   | { readonly type: 'start-blink' }
   | { readonly type: 'stop-blink' }
   | { readonly type: 'apply-estimates'; readonly estimates: Estimates | null }

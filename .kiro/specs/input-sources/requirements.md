@@ -256,5 +256,10 @@ Sources of truth: `docs/BRIEF.md`, `.kiro/steering/product.md`, `.kiro/steering/
 
 These corrections supersede earlier conflicting criteria in this document.
 
-19.1. THE app SHALL satisfy: Clamp blink events to the receiving engine last input time so delayed video timestamps never cause a press/release to be ignored as in the past.
-19.2. THE app SHALL satisfy: Saved blink choice may resume without another partner action only when camera permission is already granted; never request camera access automatically for prompt/denied/unknown permission.
+19.1. WHEN a blink event timestamp precedes the receiving engine last input time, THE Input_Layer SHALL clamp it to that time so delayed video cannot drop a press or release.
+19.2. WHEN saved Blink input loads with camera permission granted, THE Input_Layer SHALL resume without another partner action; IF permission is prompt, denied or unknown, THE Input_Layer SHALL require explicit camera action.
+
+### Requirement 20: Setup rollback and cached builds
+
+20.1. WHEN setup snapshots the switch learner, THE learner SHALL return its active and persisted learned keys; WHEN setup restores that snapshot, THE learner SHALL restore both keys and report persistence failure while retaining the restored active key.
+20.2. WHEN a production build starts, THE build script SHALL prepare and verify the pinned self-hosted MediaPipe assets before Next.js builds, even if postinstall was skipped.

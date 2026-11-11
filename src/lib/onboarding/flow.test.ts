@@ -113,15 +113,15 @@ describe('Input_Step rows', () => {
     const { next, effects } = step(first, { type: 'choose', choice: 'key-tap' });
     expect(next).toMatchObject({ selected: 'key-tap', inputChoice: 'key-tap' });
     expect(continueEnabled(next)).toBe(true);
-    expect(effects).toEqual([]);
+    expect(effects).toEqual([{ type: 'clear-switch' }]);
   });
 
   it('choose key-tap disarms an armed learner and stops a started camera', () => {
     const armed = step(first, { type: 'choose', choice: 'switch' }).next;
-    expect(step(armed, { type: 'choose', choice: 'key-tap' }).effects).toEqual([{ type: 'disarm-learner' }]);
+    expect(step(armed, { type: 'choose', choice: 'key-tap' }).effects).toEqual([{ type: 'disarm-learner' }, { type: 'clear-switch' }]);
     const camera = run(first, [{ type: 'choose', choice: 'blink' }, { type: 'camera-on' }]).state;
     const { next, effects } = step(camera, { type: 'use-key-tap' });
-    expect(effects).toEqual([{ type: 'stop-blink' }]);
+    expect(effects).toEqual([{ type: 'stop-blink' }, { type: 'clear-switch' }]);
     expect(next).toMatchObject({ selected: 'key-tap', inputChoice: 'key-tap', blinkPhase: { kind: 'idle' } });
   });
 
@@ -166,7 +166,7 @@ describe('Input_Step rows', () => {
     const armed = step(first, { type: 'choose', choice: 'switch' }).next;
     const { next, effects } = step(armed, { type: 'choose', choice: 'blink' });
     expect(next).toMatchObject({ selected: 'blink', inputChoice: null, blinkPhase: { kind: 'explained' } });
-    expect(effects).toEqual([{ type: 'disarm-learner' }]);
+    expect(effects).toEqual([{ type: 'disarm-learner' }, { type: 'clear-switch' }]);
     expect(step(next, { type: 'choose', choice: 'blink' }).next).toBe(next);
   });
 
@@ -257,14 +257,14 @@ describe('Practice_Step rows', () => {
     const { next, effects } = step(two, { type: 'use-default' });
     expect(next.result).toEqual({ kind: 'default', calibration: null });
     expect(next.durations).toEqual([180, 200]);
-    expect(effects).toEqual([]);
+    expect(effects).toEqual([{ type: 'focus-keying-surface' }]);
     expect(step(next, { type: 'use-default' }).next).toBe(next);
   });
 
-  it('a later fifth press replaces the default result with the calibrated one', () => {
+  it('keying after choosing default speed preserves the chosen result and durations', () => {
     const early = run(practice, [...presses([180, 200]), { type: 'use-default' }]).state;
     const fifth = run(early, presses([220, 600, 640], 50_000)).state;
-    expect(fifth.result).toEqual({ kind: 'measured', calibration: calibrate(SHORT_LONG) });
+    expect(fifth).toBe(early);
   });
 
   it('practice-again restarts only while a Calibration is held (Requirement 15.5)', () => {

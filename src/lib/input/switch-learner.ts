@@ -1,6 +1,6 @@
 import type { KeyEventLike, KeyRouter, LearnerHook } from './key-router';
 import type { SettingsStore } from './settings';
-import type { SwitchSource } from './switch';
+import { validateSwitchKey, type SwitchSource } from './switch';
 import { err, ok, type Result } from './types';
 
 export type LearnError =
@@ -8,7 +8,15 @@ export type LearnError =
   | { readonly reason: 'cancelled'; readonly message: string }
   | { readonly reason: 'save-failed'; readonly message: string };
 
+export interface SwitchKeySnapshot {
+  readonly active: string | null;
+  readonly stored: string | null;
+}
+
 export interface SwitchLearner {
+  /** Setup rollback keeps the active and persisted keys separately. */
+  snapshot(): SwitchKeySnapshot;
+  restore(snapshot: SwitchKeySnapshot): Result<void, { readonly reason: 'save-failed'; readonly message: string }>;
   /** Arms the learner. Resolves on the next qualifying keydown or on cancel(). Never rejects. No timeout (Req 5.5). */
   arm(): Promise<Result<string, LearnError>>;
   cancel(): void;
@@ -72,6 +80,16 @@ export function createSwitchLearner(deps: {
   };
 
   return {
+    snapshot() {
+      const stored = deps.store.readSwitchKey();
+      const active = deps.switchSource.learnedKey();
+      return { active, stored: stored.ok ? validateSwitchKey(stored.value) : active };
+    },
+    restore(snapshot) {
+      const saved = snapshot.stored === null ? deps.store.clearSwitchKey() : deps.store.writeSwitchKey(snapshot.stored);
+      deps.switchSource.setLearnedKey(snapshot.active);
+      return saved.ok ? ok(undefined) : err(SAVE_FAILED);
+    },
     arm() {
       if (resolvePending !== null) {
         disarm(err(CANCELLED));

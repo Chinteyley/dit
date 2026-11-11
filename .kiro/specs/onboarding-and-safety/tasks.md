@@ -554,3 +554,10 @@ These corrections supersede earlier conflicting criteria in this document.
   - Verified: `controller.test.ts cancellation property`.
 - [x] 24.5 On reload with saved blink input, automatically resume only if the Permissions API reports camera permission granted; prompt/denied/unsupported states retain the explicit camera action.
   - Verified: `SafetyNotices.test.tsx (granted/prompt/denied/unsupported)`.
+
+- [x] 25.1 Detect letter-by-letter SOS on guard press and timer commits, with focused regression coverage.
+- [x] 25.2 Snapshot and restore active/persisted switch keys on cancel; clear switch on non-switch selection; cover learner rollback and controller selection/cancel.
+- [x] 25.3 Freeze chosen practice results, focus after default speed and accept by single input before five durations; adjust focused reducer/controller/UI tests.
+- [x] 25.4 Stack non-modal setup above codes and cancel re-run Practice/Legend on Escape; verify component behavior.
+- [ ] 25.5 Show Commands first, remove fixed paging cap, add partner page buttons and polite page status, retain single-input paging; verify panel capacities and code reachability.
+- [x] 25.6 Rewrite last-round review requirements in conditional EARS form.

@@ -253,7 +253,7 @@ export function isValidAction(s: OnboardingState, a: OnboardingAction): boolean 
     case 'practice':
       switch (a.type) {
         case 'press':
-          return a.kind === 'down' ? s.heldDownT === null && s.durations.length < PRACTICE_PRESSES : s.heldDownT !== null;
+          return s.result.kind === 'none' && (a.kind === 'down' ? s.heldDownT === null && s.durations.length < PRACTICE_PRESSES : s.heldDownT !== null);
         case 'use-default':
           return true;
         case 'practice-again':

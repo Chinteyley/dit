@@ -4,7 +4,7 @@
  * Test-only: never re-exported from index.ts.
  */
 import { DEFAULT_ENABLED_SOURCES, type EnabledSources, type SourceControl } from '@/lib/conversation';
-import { err, type LearnError, type Result, type SourceKind, type SourceStatus, type SwitchLearner } from '@/lib/input';
+import { err, type LearnError, type Result, type SourceKind, type SourceStatus, type SwitchKeySnapshot, type SwitchLearner } from '@/lib/input';
 import type { DecoderState, Engine, EngineConfig, EngineEvent, EstimateSnapshot } from '@/lib/morse';
 
 // ---------------------------------------------------------------------------
@@ -183,13 +183,15 @@ export interface FakeSwitchLearner extends SwitchLearner {
   resolve(result: Result<string, LearnError>): boolean;
 }
 
-export function createFakeSwitchLearner(): FakeSwitchLearner {
+export function createFakeSwitchLearner(initial: SwitchKeySnapshot = { active: null, stored: null }): FakeSwitchLearner {
+  let keys = initial;
   let pending: ((result: Result<string, LearnError>) => void) | null = null;
   let arms = 0;
   let cancels = 0;
   const settle = (result: Result<string, LearnError>): boolean => {
     const resolve = pending;
     pending = null;
+    if (resolve !== null && result.ok) keys = { active: result.value, stored: result.value };
     resolve?.(result);
     return resolve !== null;
   };
@@ -213,7 +215,15 @@ export function createFakeSwitchLearner(): FakeSwitchLearner {
       settle(err({ reason: 'cancelled', message: 'Switch learning was cancelled.' }));
     },
     isArmed: () => pending !== null,
-    clear: () => ({ ok: true, value: undefined }),
+    snapshot: () => keys,
+    restore(snapshot) {
+      keys = snapshot;
+      return { ok: true, value: undefined };
+    },
+    clear() {
+      keys = { active: null, stored: null };
+      return { ok: true, value: undefined };
+    },
     resolve: settle,
   };
 }
