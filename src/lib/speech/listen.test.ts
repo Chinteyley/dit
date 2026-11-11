@@ -18,6 +18,12 @@ describe('initialListen', () => {
 });
 
 describe('listenStep', () => {
+  it('clears native interim text on fallback and clears the fallback status on off', () => {
+    const fallback = listenStep(on({ interim: 'unfinished' }), { type: 'mode', server: true }).state;
+    expect(fallback).toEqual(on({ message: 'server-transcription' }));
+    expect(listenStep(fallback, { type: 'toggle', on: false }).state).toEqual(on({ on: false }));
+  });
+
   it('toggle on starts recognition and clears an earlier message', () => {
     const off = { ...initialListen(true), message: 'stopped' as const };
     expect(listenStep(off, { type: 'toggle', on: true })).toEqual({ state: on(), command: 'start' });

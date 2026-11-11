@@ -178,6 +178,7 @@ export function createSessionController(deps: ControllerDeps): SessionController
   let voices: readonly VoiceInfo[] = speechOutput.voices();
   let messages: readonly StatusMessage[] = [];
   let speechEndedAt = -Infinity;
+  let capturePauseGeneration = 0;
   let lastSpokenSentence = '';
   const normalizedSentence = (text: string): string => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
@@ -298,16 +299,20 @@ export function createSessionController(deps: ControllerDeps): SessionController
       addMessage({ id: 'no-voice', text: NO_VOICE_TEXT });
       return;
     }
+    const pauseGeneration = ++capturePauseGeneration;
     const onEnd = (outcome: 'done' | 'error' | 'cancelled'): void => {
       speechEndedAt = clock();
+      if (pauseGeneration === capturePauseGeneration && !disposed) speechInput.setPaused?.(false);
       if (disposed || outcome !== 'error') return;
       batch(() => addMessage({ id: 'speak-error', text: SPEAK_ERROR_TEXT }));
     };
     try {
       // Voice and rate are read now, so a new selection applies to this utterance (Req 17.8).
       lastSpokenSentence = normalizedSentence(sentence);
+      speechInput.setPaused?.(true);
       speechOutput.speak(sentence, { voiceURI: settings.voiceURI, rate: settings.speechRate }, onEnd);
     } catch {
+      speechInput.setPaused?.(false);
       addMessage({ id: 'speak-error', text: SPEAK_ERROR_TEXT });
     }
   };
@@ -409,6 +414,7 @@ export function createSessionController(deps: ControllerDeps): SessionController
   };
 
   const startRecognition = (): void => {
+    speechInput.setPaused?.(speechOutput.isSpeaking());
     if (!speechInput.start().ok) applyListen({ type: 'start-failed' });
   };
 
@@ -482,6 +488,9 @@ export function createSessionController(deps: ControllerDeps): SessionController
   dispatch({ type: 'hydrate', turns: loadedHistory.record.turns });
 
   unsubscribers.push(
+    speechInput.onMode?.((mode) => {
+      if (!disposed) batch(() => applyListen({ type: 'mode', server: mode === 'server' }));
+    }) ?? (() => undefined),
     speechInput.onInterim((text) => {
       if (!disposed) batch(() => applyListen({ type: 'interim', text }));
     }),

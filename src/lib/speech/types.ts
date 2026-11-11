@@ -1,6 +1,6 @@
 /**
- * Interfaces around Web Speech synthesis and recognition (design "lib/speech/types.ts"). The
- * browser adapters live in browser.ts and the test fakes in fakes.ts, so the controller and its
+ * Interfaces around speech synthesis and browser/server recognition (design "lib/speech/types.ts"). The
+ * browser adapters live in browser.ts and recorder.ts and the test fakes in fakes.ts, so the controller and its
  * tests never touch the real APIs (Req 23.6, 23.7).
  */
 import type { Unsubscribe } from '@/lib/input';
@@ -35,14 +35,20 @@ export interface SpeechOutput {
 }
 
 export type RecognitionError =
-  | 'permission-denied' // not-allowed, service-not-allowed
+  | 'permission-denied' // not-allowed
+  | 'network'
+  | 'service-unavailable' // service-not-allowed
   | 'no-microphone' // audio-capture
   | 'no-speech'
   | 'aborted'
-  | 'other'; // network, language-not-supported, bad-grammar, start() throwing, ...
+  | 'other'; // language-not-supported, bad-grammar, start() throwing, ...
 
 export interface SpeechInput {
   isSupported(): boolean;
+  /** Optional capabilities of the browser/server selector; fakes can omit them. */
+  mode?(): 'browser' | 'server';
+  onMode?(listener: (mode: 'browser' | 'server') => void): Unsubscribe;
+  setPaused?(paused: boolean): void;
   /** Starts recognition (continuous, interim results). A failed Result when start() throws. */
   start(): Result<void, RecognitionError>;
   stop(): void;

@@ -371,8 +371,8 @@ Requirements 24 to 28 come from a design polish pass on 2026-11-11, after a revi
 
 #### Acceptance Criteria
 
-1. WHERE the browser provides speech recognition, THE Listen_Toggle SHALL be shown as a switch control labelled "Listen" whose checked state is on from the moment the partner turns it on until recognition is stopped by the partner or switched off by criterion 8 or criterion 11.
-2. IF the browser provides no speech recognition, THEN THE Listen_Toggle SHALL be disabled, SHALL stay in the off state, and SHALL show the text "Listening is not supported in this browser. Type your line instead."
+1. WHERE the browser provides speech recognition or microphone capture supported by Requirement 29, THE Listen_Toggle SHALL be shown as a switch control labelled "Listen" whose checked state is on from the moment the partner turns it on until recognition is stopped by the partner or switched off by criterion 8 or criterion 11.
+2. IF the browser provides neither speech recognition nor supported microphone capture, THEN THE Listen_Toggle SHALL be disabled, SHALL stay in the off state, and SHALL show the text "Listening is not supported in this browser. Type your line instead."
 3. WHEN the partner turns the Listen_Toggle on, THE Speech_Input SHALL start recognition and THE Listen_Toggle SHALL clear any message previously shown by criterion 8 or criterion 11.
 4. WHEN the Speech_Input delivers a final transcript whose Whitespace-trimmed value is non-empty, THE Session_Hook SHALL pass the trimmed transcript to the Session_Reducer as one Partner_Line and THE Listen_Toggle SHALL clear the shown interim transcript.
 5. WHEN the Speech_Input delivers a final transcript whose Whitespace-trimmed value is empty, THE Session_Hook SHALL discard it without dispatching a Session_Action.
@@ -381,7 +381,7 @@ Requirements 24 to 28 come from a design polish pass on 2026-11-11, after a revi
 8. IF recognition reports a permission error or a missing-microphone error, THEN THE Speech_Input SHALL stop recognition without restarting, and THE Listen_Toggle SHALL switch off, clear the interim transcript, and show a message naming whether microphone permission was denied or no microphone was found.
 9. IF recognition ends while the Listen_Toggle is on and either no error was reported or the reported error is a no-speech or aborted error, THEN THE Speech_Input SHALL restart recognition within 1000 milliseconds without changing the Listen_Toggle's checked state.
 10. WHEN the app loads, THE Listen_Toggle SHALL start in the off state, regardless of its state in any earlier session.
-11. IF recognition reports an error other than those named in criterion 8 and criterion 9, or a start or restart attempt fails, THEN THE Speech_Input SHALL stop recognition without restarting, and THE Listen_Toggle SHALL switch off, clear the interim transcript, and show a message saying that listening stopped and the partner can turn Listen on again or type a line.
+11. IF recognition reports an error other than those handled by criterion 8, criterion 9 or Requirement 29, or a start or restart attempt fails, THEN THE Speech_Input SHALL stop recognition without restarting, and THE Listen_Toggle SHALL switch off, clear the interim transcript, and show a message saying that listening stopped and the partner can turn Listen on again or type a line.
 12. WHEN the partner turns the Listen_Toggle off, THE Speech_Input SHALL stop recognition, THE Session_Hook SHALL discard any final transcript delivered after that point, and THE Listen_Toggle SHALL clear the interim transcript.
 
 ### Requirement 19: Partner_Line_Form
@@ -584,3 +584,22 @@ These corrections supersede earlier conflicting criteria in this document.
 26.5. WHEN an incoming blink timestamp precedes the engine last accepted timestamp, THE Session_Controller SHALL clamp it to that timestamp so delayed frames cannot drop presses.
 
 Review integration detail: setup cancellation snapshots the session engine’s current adapted estimates through getEstimates(), rather than rereading storage. Practice and Legend are non-modal panels beside the keying surface; focus returns to that surface for Speak-code acceptance/Start. Learning a switch re-enables its source after a previous key/tap or blink choice disabled it.
+
+
+### Requirement 29: Listen server transcription fallback
+
+**User Story:** As a partner in a browser without a working Web Speech backend, I want Listen to keep transcribing through my microphone without a second toggle.
+
+1. WHEN Listen is turned on and native recognition is absent, THE Speech_Input SHALL use MediaRecorder, getUserMedia audio and Web Audio energy detection, provided those APIs are available.
+2. WHEN native recognition reports `network` or `service-not-allowed`, THE Speech_Input SHALL switch to server transcription without switching Listen off and SHALL avoid native recognition for the rest of the page session, including subsequent toggles.
+3. WHILE server transcription is selected and Listen is on, THE Listen_Toggle SHALL show the status “Listening (server transcription)”.
+4. WHEN audio energy crosses the speech threshold, THE Capture_Adapter SHALL begin an utterance; WHEN silence lasts 800 ms or an utterance reaches 15 seconds, THE Capture_Adapter SHALL end it and SHALL upload completed speech clips in order to POST `/api/transcribe` as raw mono PCM16 WAV after decoding the recorder output and resampling to 16 kHz.
+5. WHEN an utterance contains less than 120 ms between its first and last speech samples, THE Capture_Adapter SHALL discard it as noise; WHEN a delayed background timer produces a clip longer than 16 seconds, THE Capture_Adapter SHALL discard it.
+6. WHILE Listen is off, THE Speech_Input SHALL acquire no microphone; WHEN Listen turns off, THE Speech_Input SHALL stop microphone tracks, discard unfinished and queued clips, abort uploads and ignore late permission grants and transcription results.
+7. WHILE Dit's Speech_Output is playing, THE Speech_Input SHALL pause capture and discard unfinished capture; WHEN the current output ends, THE Speech_Input SHALL resume only if Listen remains on and SHALL retain the existing transcript echo and cooldown filters.
+8. WHEN POST `/api/transcribe` receives a request, THE route SHALL import and apply expansion's `checkOrigin`, `clientKey`, capped body reader and per-IP limiter, SHALL reject missing/foreign Origin with 403, SHALL validate the PCM WAV header/sample count, reject malformed containers with 400, cap the raw body at 1 MiB and decoded duration at 30 seconds with 413, and SHALL limit each IP to 30 requests per 60 seconds with 429 and Retry-After.
+9. WHEN a valid request has no server-only key, THE route SHALL return 503; WHEN the provider fails or exceeds the 15 second complete-response deadline, THE route SHALL return a generic 502 or 504 without upstream details.
+10. WHEN the provider returns valid transcription, THE route SHALL return only `{ text }` without caching, and THE Speech_Input SHALL emit it through the existing final-transcript interface so history and expansion context use the existing Partner_Line path.
+11. WHEN server transcription fails, THE Listen_Toggle SHALL switch off with a message naming server transcription availability and suggesting checking the connection/configuration or typing a line; WHEN microphone permission is denied or no microphone is available, THE existing specific microphone messages SHALL apply.
+12. WHEN the route handles any request, THE route SHALL log only status and latency, SHALL keep audio/text only in request-local memory, and SHALL never expose a provider key; WHERE an active Fireworks audio endpoint exists, THE route SHALL use its OpenAI-compatible transcription API with DIT_LLM_API_KEY, with separate server-only endpoint/model/key overrides supported.
+13. WHERE Fireworks audio inference is unavailable, THE documentation SHALL disclose that limitation and SHALL not claim a successful live transcription; THE provider SHALL remain configurable for an active OpenAI-compatible service.

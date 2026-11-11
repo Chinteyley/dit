@@ -520,3 +520,15 @@ These corrections supersede earlier conflicting criteria in this document.
 - [x] 27.1 Recognise pause-split SOS at space/Speak while preserving preceding text, with a focused property regression.
 - [x] 27.2 Limit normalized sentence echo rejection to five seconds, with a focused property regression.
 - [x] 27.3 Rewrite last-round review requirements in conditional EARS form.
+
+
+## Listen transcription fallback (Requirement 29)
+
+- [x] 29.1 Add the injectable POST `/api/transcribe` handler and server-only route, reusing expansion origin checks, per-IP limiter, capped body reader, timeout and status/latency-only logging; cover origin, limits, configuration, provider failures and successful text responses; normalize recorder output to PCM WAV and validate a hard 30 s sample-count cap on the server.
+- [x] 29.2 Add pure RMS/VAD segmentation with unit and fast-check properties, plus the MediaRecorder/Web Audio capture adapter with ordered uploads, resource release, late permission/result guards and cancellation tests.
+- [x] 29.3 Select native recognition until its backend fails, automatically switch to capture without a second toggle, retain the selection for the page session, show server-transcription status and report network failure clearly.
+- [x] 29.4 Pause capture around Dit speech, preserve the final-transcript/echo/context path and prevent cancellation of a replaced output from resuming capture early; cover this controller seam in ListenToggle tests.
+- [x] 29.5 Update Listen EARS requirements, design, README privacy/setup and empty server-only environment examples; document Fireworks deprecation and the Groq override.
+- [x] 29.6 Verify `bun run typecheck`, `bun run lint`, `bun run test` and `bun run build` (2026-11-11; all pass).
+- [x] 29.7 Generate “Do you need anything” with macOS say/ffmpeg, build and start on port 3125, and POST the WAV with a matching Origin; verify provider failure is surfaced generically (route 502 `upstream_failed`, log contains only status/latency).
+- [ ] 29.8 Confirm a successful live transcription. Blocked by Fireworks audio deprecation: configured key returns 401 on `audio-prod.api.fireworks.ai`, former turbo host returns 503 `no healthy upstream`. Groq Whisper is documented as an alternative; a replacement provider key is still needed. No success is claimed.

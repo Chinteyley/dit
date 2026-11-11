@@ -4,13 +4,21 @@
  */
 import type { RecognitionError } from './types';
 
-export type ListenMessage = 'unsupported' | 'permission-denied' | 'no-microphone' | 'stopped';
+export type ListenMessage =
+  | 'unsupported'
+  | 'permission-denied'
+  | 'no-microphone'
+  | 'stopped'
+  | 'network'
+  | 'server-transcription';
 
 /** The text the Listen_Toggle area shows for each message (Req 18.2, 18.8, 18.11). */
 export const LISTEN_MESSAGE_TEXT: Readonly<Record<ListenMessage, string>> = Object.freeze({
   unsupported: 'Listening is not supported in this browser. Type your line instead.',
   'permission-denied': 'Microphone permission was denied. Allow the microphone to use Listen, or type your line.',
   'no-microphone': 'No microphone was found. Connect one to use Listen, or type your line.',
+  network: 'Server transcription is unavailable. Check the connection or server configuration, or type your line.',
+  'server-transcription': 'Listening (server transcription)',
   stopped: 'Listening stopped. Turn Listen on again or type a line.',
 });
 
@@ -26,6 +34,7 @@ export interface ListenState {
 export type ListenInput =
   | { readonly type: 'toggle'; readonly on: boolean }
   | { readonly type: 'start-failed' }
+  | { readonly type: 'mode'; readonly server: boolean }
   | { readonly type: 'interim'; readonly text: string }
   | { readonly type: 'final' }
   | { readonly type: 'error'; readonly error: RecognitionError }
@@ -47,7 +56,8 @@ const stay = (state: ListenState): ListenStep => ({ state, command: null });
 
 /** Switches Listen off with an optional message and stops recognition. */
 function switchOff(s: ListenState, message: ListenMessage | null): ListenStep {
-  return { state: { ...s, on: false, interim: '', message: message ?? s.message }, command: 'stop' };
+  const nextMessage = message ?? (s.message === 'server-transcription' ? null : s.message);
+  return { state: { ...s, on: false, interim: '', message: nextMessage }, command: 'stop' };
 }
 
 export function listenStep(s: ListenState, input: ListenInput): ListenStep {
@@ -59,6 +69,8 @@ export function listenStep(s: ListenState, input: ListenInput): ListenStep {
         return { state: { ...s, on: true, interim: '', message: null }, command: 'start' };
       }
       return s.on ? switchOff(s, null) : stay(s.interim === '' ? s : { ...s, interim: '' });
+    case 'mode':
+      return s.on ? stay({ ...s, interim: '', message: input.server ? 'server-transcription' : null }) : stay(s);
     case 'interim':
       return s.on ? stay({ ...s, interim: input.text }) : stay(s);
     case 'final':
@@ -69,6 +81,8 @@ export function listenStep(s: ListenState, input: ListenInput): ListenStep {
       // Errors after the partner switched Listen off are stray events from the stopped session.
       if (!s.on) return stay(s);
       switch (input.error) {
+        case 'network':
+          return switchOff(s, 'network');
         case 'permission-denied':
         case 'no-microphone':
           return switchOff(s, input.error);

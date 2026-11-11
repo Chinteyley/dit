@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LISTEN_MESSAGE_TEXT, initialListen, type ListenState } from '@/lib/speech';
 import { INERT_SESSION_API, SessionApiContext } from './session-api-context';
 import { ListenToggle } from './ListenToggle';
+import { createControllerRig, char, SPEAK } from '@/hooks/session-controller.test-support';
+import { createFakeSpeechInput } from '@/lib/speech/fakes';
 
 afterEach(cleanup);
 
@@ -28,6 +30,29 @@ const OFF = initialListen(true);
 const ON: ListenState = { ...OFF, on: true };
 
 describe('ListenToggle', () => {
+  it('announces server transcription while keeping Listen checked', () => {
+    const { toggle } = renderToggle({ ...ON, message: 'server-transcription' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('status').textContent).toBe('Listening (server transcription)');
+  });
+
+  it('pauses input through consecutive Dit utterances and resumes only after the latest ends', () => {
+    const input = createFakeSpeechInput();
+    const pause = vi.fn();
+    input.setPaused = pause;
+    const rig = createControllerRig({ speechInput: input });
+    rig.controller.setListen(true);
+    pause.mockClear();
+    for (const letter of ['a', 'b']) {
+      rig.down(); rig.script(char(letter)); rig.up();
+      rig.down(); rig.script(SPEAK); rig.up();
+    }
+    expect(pause.mock.calls).toEqual([[true], [true]]);
+    rig.speechOutput.finish('done');
+    expect(pause.mock.calls).toEqual([[true], [true], [false]]);
+    rig.controller.dispose();
+  });
+
   it('is a switch named "Listen" that reflects on and off (Req 18.1)', () => {
     const off = renderToggle(OFF);
     expect(off.toggle.getAttribute('aria-checked')).toBe('false');
