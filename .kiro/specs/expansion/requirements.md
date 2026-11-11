@@ -357,3 +357,7 @@ These corrections supersede earlier conflicting criteria in this document.
 20.4. WHEN documenting default-model verification, THE project SHALL retain the user-provided result: deepseek-v4p1-flash-1017 returned correct top suggestions for iwtgo, cihsw, mbh, tyfc and wtt in 0.7–2.4 seconds.
 
 Round-2 clarification: paused initials depend on whether every leading token is a known word, not individual multi-letter prefixes or exact phrase matches (`ci hs`, `iw th`, `iwt go`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.
+
+20.5. WHEN multiple all-letter tokens total 2–12 letters and any token of 3 or more letters is a Known_Word, THE Classifier SHALL NOT return initials (so `mom come`, `ok thanks` and `john called` stay words). WHEN no such token exists and either not every leading token is a Known_Word, every token is a single letter, some multi-letter token is neither a Known_Word nor a Proper_Prefix, or the joined letters equal a Phrase_Bank phrase's Initials_Of, THE Classifier SHALL join the tokens as initials (so `i wtgo` and `i nh` are initials).
+
+Round-3 clarification: 20.5 refines 20.1 after review found both a missed case (`i wtgo`, a known leading word) and a regression (`mom come` read as initials). The Word_List gains everyday words the book corpus misses: mom, dad, hi, hey, bye, ok.

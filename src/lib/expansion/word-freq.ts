@@ -21,6 +21,9 @@
  *    checks words against dictionaries, so it lacks most inflected forms and contractions
  *    typed without the apostrophe: thirsty, tv, wheelchair, choking, hurts, dizzy, itchy, itch,
  *    didnt, dont, youre, joking, makes, goodnight, friends, visitors.
+ * 3. Added everyday conversational words the book corpus ranks low or capitalises, so typed
+ *    words such as "mom come" or "ok thanks" are read as words, not initials: mom, dad, hi, hey,
+ *    bye, ok.
  */
 export const WORD_LIST: readonly string[] = Object.freeze([
   'the', 'of', 'and', 'to', 'in', 'a', 'is', 'that', 'for', 'as', 'it', 'be', 'by', 'with', 'was',
@@ -376,5 +379,5 @@ export const WORD_LIST: readonly string[] = Object.freeze([
   'headache', 'cough', 'frustrated', 'embarrassed', 'suction', 'pillow', 'bored', 'hopeful',
   'overwhelmed', 'scratch', 'wipe', 'cant', 'thirsty', 'tv', 'wheelchair', 'choking', 'hurts',
   'dizzy', 'itchy', 'itch', 'didnt', 'dont', 'youre', 'joking', 'makes', 'goodnight', 'friends',
-  'visitors',
+  'visitors', 'mom', 'dad', 'hi', 'hey', 'bye', 'ok',
 ]);

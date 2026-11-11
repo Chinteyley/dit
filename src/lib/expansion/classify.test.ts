@@ -33,7 +33,7 @@ describe('classify', () => {
   it('reads complete words, digits and mixed input as words', () => {
     expect(classify('i want water')).toStrictEqual({ kind: 'words', tokens: ['i', 'want', 'water'] });
     expect(classify('123')).toStrictEqual({ kind: 'words', tokens: ['123'] });
-    expect(classify('i w water')).toStrictEqual({ kind: 'initials', tokens: ['i', 'w', 'water'], initials: 'iwwater' });
+    expect(classify('i w water')).toStrictEqual({ kind: 'words', tokens: ['i', 'w', 'water'] });
   });
 
   it('reads 13 single letters by their last letter', () => {
@@ -54,5 +54,14 @@ describe('classify', () => {
     const b = classify('i want');
     expect(a).toStrictEqual(b);
     expect(a.tokens).not.toBe(b.tokens);
+  });
+  it('reads paused initials after a known leading word as initials (Req 20.5)', () => {
+    expect(classify('i wtgo')).toMatchObject({ kind: 'initials', initials: 'iwtgo' });
+    expect(classify('i nh')).toMatchObject({ kind: 'initials', initials: 'inh' });
+  });
+
+  it('keeps everyday word input with a 3+ letter known word as words (Req 20.5)', () => {
+    expect(classify('mom come').kind).toBe('words');
+    expect(classify('ok thanks').kind).toBe('words');
   });
 });

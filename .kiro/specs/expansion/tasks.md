@@ -402,3 +402,4 @@ Round-2 clarification: paused initials depend on whether every leading token is 
 
 - [x] 21.1 Correct paused-initial and partial classification using known leading words; cover review examples, phrase controls and on-device expansion in focused regressions.
 - [x] 21.2 Rewrite last-round review requirements as conditional EARS criteria.
+- [x] 21.3 Refine paused-initial classification (Requirement 20.5): no initials when a 3+ letter Known_Word is present; initials when a multi-letter token is neither a word nor a prefix or the joined letters match phrase-bank initials; add mom, dad, hi, hey, bye, ok to the Word_List; regressions for `i wtgo`, `i nh`, `mom come`, `ok thanks`.

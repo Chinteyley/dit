@@ -17,7 +17,16 @@ function refClassification(tokens: readonly string[]): { kind: InputClassificati
     return { kind: 'initials', initials: only };
   }
   const leadingWords = tokens.slice(0, -1).every((token) => WORD_LIST.includes(token));
-  if (tokens.length >= 2 && tokens.join('').length <= 12 && (!leadingWords || tokens.every((token) => token.length === 1)) && tokens.every((token) => /^[a-z]+$/.test(token))) {
+  const known = (token: string): boolean => WORD_LIST.includes(token);
+  const prefix = (token: string): boolean => WORD_LIST.some((word) => word.length > token.length && word.startsWith(token));
+  const joined = tokens.join('');
+  const abbreviated =
+    !leadingWords ||
+    tokens.every((token) => token.length === 1) ||
+    tokens.some((token) => token.length > 1 && !known(token) && !prefix(token)) ||
+    PHRASE_BANK.some((p) => initialsOf(p.text) === joined);
+  if (tokens.length >= 2 && joined.length <= 12 && tokens.every((token) => /^[a-z]+$/.test(token)) &&
+    !tokens.some((token) => token.length >= 3 && known(token)) && abbreviated) {
     return { kind: 'initials', initials: tokens.join('') };
   }
   const last = tokens[tokens.length - 1] ?? '';
