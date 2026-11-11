@@ -25,8 +25,9 @@ function refClassification(tokens: readonly string[]): { kind: InputClassificati
     tokens.every((token) => token.length === 1) ||
     tokens.some((token) => token.length > 1 && !known(token) && !prefix(token)) ||
     PHRASE_BANK.some((p) => initialsOf(p.text) === joined);
+  const phraseMatch = !tokens.every(known) && PHRASE_BANK.some((p) => initialsOf(p.text) === joined);
   if (tokens.length >= 2 && joined.length <= 12 && tokens.every((token) => /^[a-z]+$/.test(token)) &&
-    !tokens.some((token) => token.length >= 3 && known(token)) && abbreviated) {
+    ((!tokens.some((token) => token.length >= 3 && known(token)) && abbreviated) || phraseMatch)) {
     return { kind: 'initials', initials: tokens.join('') };
   }
   const last = tokens[tokens.length - 1] ?? '';

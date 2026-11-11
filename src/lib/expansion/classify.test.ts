@@ -60,6 +60,11 @@ describe('classify', () => {
     expect(classify('i nh')).toMatchObject({ kind: 'initials', initials: 'inh' });
   });
 
+  it('lets an exact phrase-bank match win over a known word unless every token is a word (Req 20.5)', () => {
+    expect(classify('i n two')).toMatchObject({ kind: 'initials', initials: 'intwo' });
+    expect(classify('m mid')).toMatchObject({ kind: 'initials', initials: 'mmid' });
+  });
+
   it('keeps everyday word input with a 3+ letter known word as words (Req 20.5)', () => {
     expect(classify('mom come').kind).toBe('words');
     expect(classify('ok thanks').kind).toBe('words');
