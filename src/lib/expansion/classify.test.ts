@@ -68,5 +68,7 @@ describe('classify', () => {
   it('keeps everyday word input with a 3+ letter known word as words (Req 20.5)', () => {
     expect(classify('mom come').kind).toBe('words');
     expect(classify('ok thanks').kind).toBe('words');
+    expect(classify('my knee').kind).toBe('words');
+    expect(classify('so sore').kind).toBe('words');
   });
 });

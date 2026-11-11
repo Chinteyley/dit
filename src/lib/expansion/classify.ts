@@ -19,8 +19,8 @@ const INITIALS_MAX = 12;
  * 1. no tokens: empty;
  * 2. one unknown all-letter token of 2 to 12 letters, or exact two-letter phrase initials: initials;
  * 3. 2–12 paused letters with no known word of 3 or more letters among them, and either all
- *    single-letter tokens, an unknown leading token, a token that is neither a Known_Word nor a
- *    Proper_Prefix (as in "i wtgo"), or exact phrase-bank initials when joined; an exact
+ *    single-letter tokens, an unknown leading token, a vowel-free token that is neither a Known_Word
+ *    nor a Proper_Prefix (as in "i wtgo"), or exact phrase-bank initials when joined; an exact
  *    phrase-bank match also wins over a known word when not every token is a word: initials;
  * 4. all leading tokens known; last token an unknown Proper_Prefix: partial;
  * 5. otherwise: words.
@@ -39,7 +39,8 @@ export function classify(text: string): InputClassification {
   const abbreviated =
     !leadingWords ||
     tokens.every((token) => token.length === 1) ||
-    tokens.some((token) => token.length > 1 && !isKnownWord(token) && !isProperPrefixOfSomeWord(token)) ||
+    // A vowel before the last letter reads as a real word the list lacks ("knee", "meds"), not initials.
+    tokens.some((token) => token.length > 1 && !isKnownWord(token) && !isProperPrefixOfSomeWord(token) && !/[aeiou]/.test(token.slice(0, -1))) ||
     PHRASE_INDEX.some((phrase) => phrase.initials === joined);
   // An exact phrase-bank match outranks the known-word veto unless every token is a word ("i n two").
   const phraseMatch = !tokens.every(isKnownWord) && PHRASE_INDEX.some((phrase) => phrase.initials === joined);
