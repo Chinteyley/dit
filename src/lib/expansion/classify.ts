@@ -40,9 +40,15 @@ export function classify(text: string): InputClassification {
     !leadingWords ||
     tokens.every((token) => token.length === 1) ||
     // A vowel before the last letter reads as a real word the list lacks ("knee", "meds"), not initials.
-    // A phrase-bank initials prefix keeps half-typed initials ("i ntut") eligible despite the vowel.
-    tokens.some((token) => token.length > 1 && !isKnownWord(token) && !isProperPrefixOfSomeWord(token) &&
-      (!/[aeiou]/.test(token.slice(0, -1)) || PHRASE_INDEX.some((phrase) => phrase.initials.startsWith(joined)))) ||
+    // After a known word of 2+ letters, a vowel before the last letter reads as a real word the
+    // list lacks ("my knee"); after a lone "i" or "a" it stays initials ("i haq"). A phrase-bank
+    // initials prefix keeps half-typed initials ("i ntut") eligible either way.
+    tokens.some((token, i) => {
+      if (token.length <= 1 || isKnownWord(token) || isProperPrefixOfSomeWord(token)) return false;
+      const before = tokens[i - 1];
+      const afterWord = before !== undefined && before.length >= 2 && isKnownWord(before);
+      return !afterWord || !/[aeiou]/.test(token.slice(0, -1)) || PHRASE_INDEX.some((phrase) => phrase.initials.startsWith(joined));
+    }) ||
     PHRASE_INDEX.some((phrase) => phrase.initials === joined);
   // An exact phrase-bank match outranks the known-word veto unless every token is a word ("i n two").
   const phraseMatch = !tokens.every(isKnownWord) && PHRASE_INDEX.some((phrase) => phrase.initials === joined);

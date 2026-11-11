@@ -24,6 +24,8 @@
  * 3. Added everyday conversational words the book corpus ranks low or capitalises, so typed
  *    words such as "mom come" or "ok thanks" are read as words, not initials: mom, dad, hi, hey,
  *    bye, ok.
+ * 4. Added short care words the corpus lacks, so "i pee" or "a rash" read as words: pee, peed,
+ *    puke, puked, poop, rash, nap, fan, meds, sore, burp.
  */
 export const WORD_LIST: readonly string[] = Object.freeze([
   'the', 'of', 'and', 'to', 'in', 'a', 'is', 'that', 'for', 'as', 'it', 'be', 'by', 'with', 'was',
@@ -380,4 +382,5 @@ export const WORD_LIST: readonly string[] = Object.freeze([
   'overwhelmed', 'scratch', 'wipe', 'cant', 'thirsty', 'tv', 'wheelchair', 'choking', 'hurts',
   'dizzy', 'itchy', 'itch', 'didnt', 'dont', 'youre', 'joking', 'makes', 'goodnight', 'friends',
   'visitors', 'mom', 'dad', 'hi', 'hey', 'bye', 'ok',
+  'pee', 'peed', 'puke', 'puked', 'poop', 'rash', 'nap', 'fan', 'meds', 'sore', 'burp',
 ]);

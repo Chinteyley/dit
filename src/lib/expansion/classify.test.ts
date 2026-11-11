@@ -69,6 +69,11 @@ describe('classify', () => {
     expect(classify('i ntut')).toMatchObject({ kind: 'initials', initials: 'intut' });
   });
 
+  it('keeps free-form initials after a lone i as initials (Req 20.5)', () => {
+    expect(classify('i haq')).toMatchObject({ kind: 'initials', initials: 'ihaq' });
+    expect(classify('i aip')).toMatchObject({ kind: 'initials', initials: 'iaip' });
+  });
+
   it('keeps everyday word input with a 3+ letter known word as words (Req 20.5)', () => {
     expect(classify('mom come').kind).toBe('words');
     expect(classify('ok thanks').kind).toBe('words');
