@@ -239,7 +239,7 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
     - _Requirements: 17.3, 17.5, 17.6_
   - [x] 14.2 Implement request-check helpers in `src/lib/expansion/handler.ts`
     - `ExpandEnv`, `ExpandDeps`, `ErrorCode`, `BODY_LIMIT_BYTES = 16_384`, `jsonResponse(status, body, extraHeaders?)` that always sets `Cache-Control: no-store` and `Content-Type: application/json`
-    - `checkOrigin` (absent passes; `'null'`, unparsable, credentials, non-`/` path, query, fragment or opaque origin fails; else WHATWG `URL.origin` equality), `clientKey` (first `x-forwarded-for` entry trimmed, then trimmed `x-real-ip`, then `UNKNOWN_CLIENT_KEY`), `readBodyCapped` (stream reader, cancel once bytes exceed the limit, `null` body → 0 bytes, exactly 16,384 passes)
+    - `checkOrigin` (absent passes; `'null'`, unparsable, credentials, non-`/` path, query, fragment or opaque origin fails; else WHATWG `URL.origin` equality; review v1: a `Sec-Fetch-Site` header decides alone, and without one a match with the `Host` header also passes), `clientKey` (first `x-forwarded-for` entry trimmed, then trimmed `x-real-ip`, then `UNKNOWN_CLIENT_KEY`), `readBodyCapped` (stream reader, cancel once bytes exceed the limit, `null` body → 0 bytes, exactly 16,384 passes)
     - _Requirements: 12.2, 12.5, 12.8, 12.9, 14.1_
   - [x] 14.3 Implement `handleExpand` in `src/lib/expansion/handler.ts`
     - Check order: origin → rate (`rateLimiter.check(clientKey, now)`, 429 with `Retry-After`) → `Content-Length` matching `/^\d+$/` above the limit → capped read → strict UTF-8 decode, non-empty, `JSON.parse`, `ExpandRequestSchema.safeParse` → non-empty `apiKey` (503); stop at the first failure without calling the provider
@@ -255,7 +255,7 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
   - [x] 14.5 Write property test in `src/lib/expansion/handler.prop.test.ts`
     - **Property 18: The origin check passes exactly same-origin or absent Origin**
     - **Validates: Requirements 12.2, 12.8**
-    - Same-origin variants (random case, explicit default port, trailing `/`) and one-change variants (scheme, host, port, path, `'null'`, garbage, `file:` and `data:`); `numRuns: PROP_RUNS`
+    - Same-origin variants (random case, explicit default port, trailing `/`) and one-change variants (scheme, host, port, path, `'null'`, garbage, `file:` and `data:`); review v1 adds optional `Host` headers built from parts and optional `Sec-Fetch-Site` values; `numRuns: PROP_RUNS`
   - [x] 14.6 Write property test in `src/lib/expansion/handler.prop.test.ts`
     - **Property 19: The route runs its checks in order and stops at the first failure**
     - **Validates: Requirements 12.1, 12.4, 12.5, 12.6, 12.7, 13.1**
@@ -300,7 +300,7 @@ All commands use `bun run test` and `bun run typecheck`. Never run `bun test`.
   - [x] 17.4 Write property test in `src/lib/expansion/client.prop.test.ts`
     - **Property 23: The client starts one expansion per quiet period**
     - **Validates: Requirements 15.1**
-    - Scripts of `update` calls with gaps of 0 to 1,000 ms clustered at 299, 300 and 301 ms; instant fake `fetch`; compare sent texts to a reference that skips empty, over-200 and cache-hit texts; context-only updates do not restart the timer; `vi.advanceTimersByTimeAsync`; `fc.asyncProperty`, `numRuns: PROP_RUNS`
+    - Scripts of `update` calls with gaps of 0 to 1,000 ms clustered at 299, 300 and 301 ms; instant fake `fetch`; compare sent texts to a reference that skips empty, over-200 and cache-hit texts; context-only updates do not restart the timer (review v1: unless the prepared context changed for non-empty text); `vi.advanceTimersByTimeAsync`; `fc.asyncProperty`, `numRuns: PROP_RUNS`
   - [x] 17.5 Write property test in `src/lib/expansion/client.prop.test.ts`
     - **Property 24: The client has at most one pending request and delivers exactly once per live expansion**
     - **Validates: Requirements 15.2, 15.3, 15.9, 16.7**

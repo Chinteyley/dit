@@ -571,7 +571,7 @@ export type ErrorCode =
 export const BODY_LIMIT_BYTES = 16_384;
 
 export function handleExpand(request: Request, deps: ExpandDeps): Promise<Response>;
-export function checkOrigin(originHeader: string | null, requestUrl: string): boolean;
+export function checkOrigin(originHeader: string | null, requestUrl: string, headers?: Headers): boolean;
 export function clientKey(headers: Headers): string;
 export function readBodyCapped(request: Request, limit: number):
   Promise<{ ok: true; bytes: Uint8Array } | { ok: false }>;
@@ -580,8 +580,9 @@ export function readBodyCapped(request: Request, limit: number):
 **checkOrigin** (12.2, 12.8):
 
 - `null` header → pass.
-- Otherwise fail if the value is the string `null`, `new URL(value)` throws, the URL has credentials, a path other than `/`, a query or a fragment, or `url.origin === 'null'` (non-special schemes).
-- Otherwise pass iff `url.origin === new URL(requestUrl).origin`. WHATWG `URL` lowercases scheme and host and drops default ports (`https://A.test:443` → `https://a.test`), so this gives case-insensitive, default-port-aware comparison.
+- Otherwise fail if the value is not shaped `scheme://host[:port]` with an optional trailing `/`, is the string `null`, `new URL(value)` throws, the URL has credentials, a path other than `/`, a query or a fragment, or `url.origin === 'null'` (non-special schemes).
+- Otherwise, with a `Sec-Fetch-Site` header, pass iff its value is `same-origin` (case-insensitive). Browsers compute it from the address they fetched, and page scripts cannot set it, so it also holds behind a proxy that rewrites `Host`.
+- Without one, pass iff `url.origin === new URL(requestUrl).origin`, or `url.host` equals the `Host` header parsed as `new URL(url.protocol + '//' + host).host`. WHATWG `URL` lowercases scheme and host and drops default ports (`https://A.test:443` → `https://a.test`), so this gives case-insensitive, default-port-aware comparison. The `Host` comparison is needed because Next.js sets `request.url` to `http://localhost:<port>` everywhere except Vercel builds (`trustHostHeader`); `Host` is a forbidden header for page scripts.
 
 **clientKey** (12.9): `xff.split(',')[0]` trimmed with `trimWhitespace`. If that is empty, use the trimmed `x-real-ip`. If that is empty too, use `UNKNOWN_CLIENT_KEY`. The key is used only as a Map key; it is never logged or returned.
 
@@ -659,8 +660,9 @@ State: `latestText`, `latestContext`, `debounceHandle`, `pending: { controller: 
 
 `update(text, context)`:
 
+- Compute `contextChanged`: `text === latestText`, `trimWhitespace(text) !== ''`, and the prepared-context key of `context` differs from that of `latestContext` (review v1).
 - Always store `latestContext = context`.
-- If `text !== latestText`: store it, clear the debounce timer, and set a new 300 ms timer that calls `start(latestText, latestContext)` (15.1). A context-only change does not restart the timer; the next expansion uses the latest context.
+- If `text !== latestText` or `contextChanged`: store the text, clear the debounce timer, and set a new 300 ms timer that calls `start(latestText, latestContext)` (15.1). Any other context-only change does not restart the timer; the next expansion uses the latest context.
 
 `start(text, context)`:
 
@@ -899,7 +901,7 @@ File: `rate-limit.prop.test.ts`. Generators: 1 to 4 keys; 0 to 200 events; time 
 
 ### Property 18: The origin check passes exactly same-origin or absent Origin
 
-For all request URLs `u` (scheme `http` or `https`, random host, optional port) and all `Origin` values `o`, `checkOrigin(o, u)` is true iff `o` is `null` (header absent), or `o` parses with no path beyond `/`, no query, fragment or credentials, and has the same scheme, host (case-insensitive) and effective port (default 443/80) as `u`. The string `'null'` and unparsable values give false.
+For all request URLs `u` (scheme `http` or `https`, random host, optional port), all `Origin` values `o`, all optional `Host` headers `h` and all optional `Sec-Fetch-Site` values `s`, `checkOrigin(o, u, headers)` is true iff `o` is `null` (header absent), or `o` is a plain origin (shape `scheme://host[:port]`, no path beyond `/`, no query, fragment or credentials) and: `s` is present and equals `same-origin` (case-insensitive); or `s` is absent and `o` has the same scheme, host (case-insensitive) and effective port (default 443/80) as `u`, or the same host and effective port as `h` (with `h`'s default port taken from `o`'s scheme). The string `'null'` and unparsable values give false. (Review v1 added `h` and `s`.)
 
 **Validates: Requirements 12.2, 12.8**
 
@@ -955,7 +957,7 @@ File: `handler.prop.test.ts`. The fake provider echoes the request messages and 
 
 ### Property 23: The client starts one expansion per quiet period
 
-For all scripts of `update(text, ctx)` calls separated by fake-time gaps from 0 to 1,000 ms, with the fake `fetch` answering instantly, the texts passed to `fetch` (after JSON decoding) equal the reference list. The reference adds `trimWhitespace(latestText)` each time a 300 ms gap with no text change ends, skipping texts that are empty, longer than 200 characters, or cache hits. Context-only updates do not restart the timer.
+For all scripts of `update(text, ctx)` calls separated by fake-time gaps from 0 to 1,000 ms, with the fake `fetch` answering instantly, the texts passed to `fetch` (after JSON decoding) equal the reference list. The reference adds `trimWhitespace(latestText)` each time a 300 ms gap with no change ends, skipping texts that are empty, longer than 200 characters, or cache hits. A change is a new text, or a new prepared context while the trimmed text is not empty (review v1); other context-only updates do not restart the timer.
 
 **Validates: Requirements 15.1**
 
@@ -1072,7 +1074,7 @@ The client never retries and never surfaces an error object. The only visible si
 These follow from the requirements as written. They do not block implementation, but a requirements change would be needed to alter them:
 
 - **Body size versus context size.** Requirement 15.4 caps Turns by UTF-16 units, while Requirement 12.5 caps the body in bytes. A long non-ASCII context can produce a body over 16,384 bytes, which the route rejects with 413, so the speaker gets on-device suggestions. A client-side byte cap would fix this.
-- **Context-only changes.** Requirement 15.1 restarts the debounce only when the typed text changes. A new partner line does not refresh suggestions until the speaker keys again.
+- **Context-only changes.** Resolved in review v1: Requirement 15.1 now also restarts the debounce when the prepared context changes for non-empty text, so a new partner line refreshes the suggestions (conversation-ui Requirement 9.3).
 - **Per-instance rate limit.** Vercel may run several instances, each with its own count, so the effective limit can be higher than 30 per minute per IP.
 
 ### Pure-function errors
@@ -1139,3 +1141,9 @@ Deviations and additions made while implementing this design (2026-11-11):
 - **Client.** The initial typed text is `''`, so an initial `update('', …)` starts nothing. An `isOnline` that throws counts as offline. After `dispose`, `update` does nothing.
 - **Tooling.** `next.config.ts` is not empty: `headers()` sends `Content-Security-Policy: connect-src 'self'` on every route (a browser-level block on third-party requests, backing up the switched-off MediaPipe telemetry) and `Cache-Control: public, max-age=31536000, immutable` on `/mediapipe/:path*` (deferred from input-sources task 1.2); `next.config.test.ts` checks both. `tsconfig.json` needs `skipLibCheck` (Next 16.4 types use ES2024 `PromiseWithResolvers`) and holds the options `next build` writes (`allowJs`, `incremental`, `esModuleInterop`, `resolveJsonModule`, `.next/types` includes); `next-env.d.ts` and `*.tsbuildinfo` are gitignored, as current Next docs advise.
 - **Tests.** The no-network setup file defines the throwing `fetch` with `Object.defineProperty` rather than `vi.stubGlobal`, so a test's `vi.unstubAllGlobals()` restores the throwing one. `purity.test.ts` enforces the review checklists of tasks 5.2, 14.3 and 17.1 (no `process.env`, clock, randomness, storage, DOM, console or global fetch/timers in lib code; data files import nothing; the client does not import `on-device.ts`; the barrel exports no server-only module). The ESLint rule of task 5.2 waits for the ESLint config (conversation-ui task 1.3). Properties 19 to 21 skip generated requests whose JSON exceeds 16,384 bytes (see Open points). The exactly-4,000 ms case of Property 21 is pinned in `handler.test.ts`: the deadline timer is created before the Provider's reply timer, so it fires first and the route answers 504.
+
+Review v1 fixes (2026-11-11):
+
+- **Origin check off Vercel.** Next.js 16 builds `request.url` from `http://localhost:<port>` unless `trustHostHeader` is set, which only Vercel builds do (`next/dist/server/lib/router-utils/resolve-routes.js`). Comparing the Origin with `request.url` therefore rejected every real same-origin request on `127.0.0.1`, a LAN address, a container port or a TLS proxy (probe on `next start`: 403). `checkOrigin(origin, url, headers)` now lets `Sec-Fetch-Site` decide when the browser sends it (`same-origin` passes, anything else fails), and otherwise also accepts an Origin whose host and port equal the `Host` header. Both headers are forbidden for page scripts, so a cross-site page still gets 403. Browsers send `Sec-Fetch-Site` only to secure origins and `localhost`, which is why the `Host` comparison stays for plain-HTTP LAN addresses; it ignores the scheme because a TLS-terminating proxy changes it, and the only gap (an `http://` page on the same host and default port calling the `https://` route) is closed by `Sec-Fetch-Site: cross-site` in current browsers. Requirement 12.2 and Property 18 were changed to match; `route.test.ts` covers the localhost-URL case.
+- **Partner line refreshes suggestions.** The two specs disagreed: conversation-ui Requirement 9.3 calls `update` with unchanged text and the new context when a partner Turn arrives, and Requirement 15.1 ignored that call. The conversation-ui contract wins, because the partner's last line is the context the prompt weighs most. `update` now restarts the debounce when the prepared context changes for non-empty text; equal prepared contexts (a new array with the same Turns, an added blank Turn) still change nothing. Requirement 15.1 and Property 23 were changed to match.
+- **Documented, not changed.** The rate-limit key trusts the first `x-forwarded-for` entry (Requirement 12.9). Vercel overwrites that header, but a directly exposed `next start` keeps a client-sent value, so a client could rotate it; the README says the limit relies on a proxy that overwrites the header. An override set with `DIT_MODEL` gets no `reasoning_effort` (Property 20), so the README and `.env.example` say it must name a model without a thinking step.

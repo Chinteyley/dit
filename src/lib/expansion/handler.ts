@@ -56,31 +56,65 @@ function errorResponse(status: number, error: ErrorCode, extraHeaders?: Record<s
   return jsonResponse(status, { error }, extraHeaders);
 }
 
-/**
- * True when the Origin header is absent, or names exactly the request URL's origin (scheme and
- * host compared case-insensitively, default ports implied) with no credentials, path, query or
- * fragment. `'null'`, unparsable values and opaque origins fail.
- */
-export function checkOrigin(originHeader: string | null, requestUrl: string): boolean {
-  if (originHeader === null) return true;
-  if (originHeader === 'null') return false;
+/** `scheme://host[:port]` with an optional trailing slash (RFC 6454); `http:a` and paths are not origins. */
+const ORIGIN_SHAPE = /^[a-z][a-z\d+.-]*:\/\/[^\s/\\?#@]+\/?$/i;
+
+/** The Origin header as a URL, or null when it is not a plain `scheme://host[:port]` origin. */
+function parseOrigin(value: string): URL | null {
+  if (!ORIGIN_SHAPE.test(value)) return null;
   let origin: URL;
-  let target: URL;
   try {
-    origin = new URL(originHeader);
-    target = new URL(requestUrl);
+    origin = new URL(value);
   } catch {
-    return false;
+    return null;
   }
-  if (origin.username !== '' || origin.password !== '') return false;
-  if (origin.pathname !== '/' || origin.search !== '' || origin.hash !== '') return false;
-  if (origin.origin === 'null') return false;
-  return origin.origin === target.origin;
+  if (origin.username !== '' || origin.password !== '') return null;
+  if (origin.pathname !== '/' || origin.search !== '' || origin.hash !== '') return null;
+  return origin.origin === 'null' ? null : origin;
+}
+
+/** `host[:port]` of a Host header read under `protocol` (default port dropped), or null when it is not one. */
+function hostUnder(protocol: string, header: string | null): string | null {
+  const value = trimWhitespace(header ?? '');
+  if (value === '' || /[\s/\\?#@]/.test(value)) return null;
+  try {
+    return new URL(`${protocol}//${value}`).host;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when the Origin header is absent, or is a plain origin (no credentials, path, query or
+ * fragment; not `'null'`, unparsable or opaque) that names this server:
+ *
+ * - With a `Sec-Fetch-Site` header, only its value decides: `same-origin` passes. Browsers set
+ *   it from the address they fetched, and page scripts cannot set it.
+ * - Without one (plain-HTTP LAN addresses, older browsers), the Origin passes when it equals the
+ *   request URL's origin or when its host and port equal the `Host` header. Next.js fills
+ *   `request.url` with `localhost` outside Vercel, so the `Host` header is what names the
+ *   address the browser used; page scripts cannot set it either.
+ *
+ * Scheme and host compare case-insensitively and an omitted port is the scheme's default port.
+ */
+export function checkOrigin(originHeader: string | null, requestUrl: string, headers: Headers = new Headers()): boolean {
+  if (originHeader === null) return true;
+  const origin = parseOrigin(originHeader);
+  if (origin === null) return false;
+  const fetchSite = headers.get('sec-fetch-site');
+  if (fetchSite !== null) return trimWhitespace(fetchSite).toLowerCase() === 'same-origin';
+  try {
+    if (origin.origin === new URL(requestUrl).origin) return true;
+  } catch {
+    // An unparsable request URL can still match the Host header.
+  }
+  return hostUnder(origin.protocol, headers.get('host')) === origin.host;
 }
 
 /**
  * The rate-limit key: the first x-forwarded-for entry, else x-real-ip, else one shared key for
- * unknown clients. Used only as a Map key; never logged or returned.
+ * unknown clients. Used only as a Map key; never logged or returned. Vercel overwrites
+ * x-forwarded-for; a directly exposed `next start` keeps a client-sent value (README Limitations).
  */
 export function clientKey(headers: Headers): string {
   const forwarded = trimWhitespace((headers.get('x-forwarded-for') ?? '').split(',')[0] ?? '');
@@ -135,7 +169,7 @@ const CONTENT_LENGTH = /^\d+$/;
 
 /** The checks in order (origin, rate, size, validation, configuration), then the Provider call. */
 async function respond(request: Request, deps: ExpandDeps): Promise<Response> {
-  if (!checkOrigin(request.headers.get('origin'), request.url)) return errorResponse(403, 'forbidden_origin');
+  if (!checkOrigin(request.headers.get('origin'), request.url, request.headers)) return errorResponse(403, 'forbidden_origin');
   try {
     const decision = deps.rateLimiter.check(clientKey(request.headers), deps.now());
     if (!decision.allowed) {

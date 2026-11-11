@@ -29,7 +29,10 @@ export interface ClientDeps {
 }
 
 export interface ExpansionClient {
-  /** Call on every change of typed text or context. Never throws. */
+  /**
+   * Call on every change of typed text or context. A new text, or a new prepared context for
+   * unchanged non-empty text, restarts the debounce. Never throws.
+   */
   update(text: string, context: readonly Turn[]): void;
   /** Clears the debounce timer and aborts any pending request. */
   dispose(): void;
@@ -45,6 +48,11 @@ export function prepareContext(context: readonly Turn[]): Turn[] {
 
 function cacheKey(trimmed: string, prepared: readonly Turn[]): string {
   return JSON.stringify([trimmed, prepared.map((turn) => [turn.role, turn.text])]);
+}
+
+/** The prepared context as a comparable string: blank Turns and Turns beyond the last 10 do not count. */
+function contextKey(context: readonly Turn[]): string {
+  return cacheKey('', prepareContext(context));
 }
 
 interface RouteReply {
@@ -177,8 +185,11 @@ export function createExpansionClient(deps: ClientDeps, onResult: (result: Expan
     update(text, context) {
       try {
         if (disposed) return;
+        // Unchanged non-empty text with a new prepared context (a partner line) is a new expansion too.
+        const contextChanged =
+          text === latestText && trimWhitespace(text) !== '' && contextKey(context) !== contextKey(latestContext);
         latestContext = context;
-        if (text === latestText) return;
+        if (text === latestText && !contextChanged) return;
         latestText = text;
         clearDebounce();
         debounce = {

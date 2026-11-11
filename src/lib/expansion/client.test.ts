@@ -93,14 +93,50 @@ describe('expansion client', () => {
     expect(s.results).toStrictEqual([{ text: 'iwtgo', suggestions: ['I want to go outside.'], source: 'ai' }]);
   });
 
-  it('does not restart the debounce for a context-only change, but sends the latest context', async () => {
+  it('restarts the debounce when a partner line changes the context of unchanged text', async () => {
     const s = setup();
     s.client.update('iwtgo', []);
     await vi.advanceTimersByTimeAsync(200);
     s.client.update('iwtgo', [{ role: 'partner', text: 'Do you need anything?' }]);
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS - 1);
+    expect(s.fake.calls).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
     expect(s.fake.calls).toHaveLength(1);
     expect(s.fake.calls[0]?.body).toStrictEqual({ text: 'iwtgo', context: [{ role: 'partner', text: 'Do you need anything?' }] });
+  });
+
+  it('refreshes finished suggestions when a partner line arrives (conversation-ui Requirement 9.3)', async () => {
+    const s = setup();
+    s.client.update('y', []);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    s.fake.calls[0]?.resolve(200, ok(['Yes.']));
+    await settle();
+    const asked: Turn[] = [{ role: 'partner', text: 'Do you want some water?' }];
+    s.client.update('y', asked);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(s.fake.calls).toHaveLength(2);
+    expect(s.fake.calls[1]?.body).toStrictEqual({ text: 'y', context: asked });
+    s.fake.calls[1]?.resolve(200, ok(['Yes, some water please.']));
+    await settle();
+    expect(s.results.map((result) => result.suggestions)).toStrictEqual([['Yes.'], ['Yes, some water please.']]);
+  });
+
+  it('starts nothing for the same text with the same prepared context, or for empty text', async () => {
+    const s = setup();
+    const context: Turn[] = [{ role: 'partner', text: 'Hello' }];
+    s.client.update('', [{ role: 'partner', text: 'Are you cold?' }]);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(s.results).toStrictEqual([]);
+    s.client.update('iwtgo', context);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    s.fake.calls[0]?.resolve(200, ok(['I want to go outside.']));
+    await settle();
+    // A new array with the same Turns, and a blank Turn that prepareContext drops, change nothing.
+    s.client.update('iwtgo', [...context]);
+    s.client.update('iwtgo', [...context, { role: 'partner', text: '   ' }]);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(s.fake.calls).toHaveLength(1);
+    expect(s.results).toHaveLength(1);
   });
 
   it('aborts the earlier request when a newer expansion starts and never delivers its result', async () => {

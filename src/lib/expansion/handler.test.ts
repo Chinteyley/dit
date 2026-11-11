@@ -46,6 +46,20 @@ describe('handleExpand checks', () => {
     await expectError(second, post(VALID), 503, 'not_configured');
   });
 
+  it('passes a page opened by LAN address although request.url names localhost (next start, next dev)', async () => {
+    const rig = createRig({ apiKey: undefined });
+    const headers = { host: '192.168.1.20:3000', origin: 'http://192.168.1.20:3000' };
+    await expectError(rig, post(VALID, headers, 'http://localhost:3000/api/expand'), 503, 'not_configured');
+    const crossSite = createRig({ apiKey: undefined });
+    await expectError(
+      crossSite,
+      post(unreadableStream(), { ...headers, origin: 'https://evil.test' }, 'http://localhost:3000/api/expand'),
+      403,
+      'forbidden_origin',
+    );
+    expect(crossSite.limiter.counted()).toBe(0);
+  });
+
   it('answers 429 rate_limited with Retry-After for the 31st request from one address', async () => {
     const rig = createRig({ apiKey: undefined });
     for (let i = 0; i < 30; i += 1) {
@@ -201,6 +215,46 @@ describe('request-check helpers', () => {
     expect(checkOrigin('https://user@dit.test', 'https://dit.test/api/expand')).toBe(false);
     expect(checkOrigin('not a url', 'https://dit.test/api/expand')).toBe(false);
     expect(checkOrigin('file:///', 'https://dit.test/api/expand')).toBe(false);
+  });
+
+  // Outside Vercel, Next.js hands the route http://localhost:<port> whatever address the browser used.
+  const NEXT_URL = 'http://localhost:3000/api/expand';
+
+  it('passes an Origin that matches the Host header when request.url is the internal localhost URL', () => {
+    const lan = new Headers({ host: '192.168.1.20:3000' });
+    expect(checkOrigin('http://192.168.1.20:3000', NEXT_URL, lan)).toBe(true);
+    expect(checkOrigin('http://127.0.0.1:3000', NEXT_URL, new Headers({ host: '127.0.0.1:3000' }))).toBe(true);
+    expect(checkOrigin('http://[::1]:3000', NEXT_URL, new Headers({ host: '[::1]:3000' }))).toBe(true);
+    // A TLS proxy that keeps the Host header: the default port is implied on both sides.
+    expect(checkOrigin('https://dit.example.org', NEXT_URL, new Headers({ host: 'DIT.example.org' }))).toBe(true);
+    expect(checkOrigin('https://dit.example.org', NEXT_URL, new Headers({ host: 'dit.example.org:443' }))).toBe(true);
+  });
+
+  it('rejects an Origin that matches neither the request URL nor the Host header', () => {
+    const lan = new Headers({ host: '192.168.1.20:3000' });
+    expect(checkOrigin('https://evil.test', NEXT_URL, lan)).toBe(false);
+    expect(checkOrigin('http://192.168.1.20:3001', NEXT_URL, lan)).toBe(false);
+    expect(checkOrigin('http://192.168.1.21:3000', NEXT_URL, lan)).toBe(false);
+    expect(checkOrigin('http://dit.example.org', NEXT_URL, new Headers({ host: 'dit.example.org:443' }))).toBe(false);
+    for (const host of ['', '  ', 'evil.test/@192.168.1.20:3000', '192.168.1.20:3000/x', 'user@192.168.1.20:3000', 'a b']) {
+      expect(checkOrigin('http://192.168.1.20:3000', NEXT_URL, new Headers({ host }))).toBe(false);
+    }
+    expect(checkOrigin('null', NEXT_URL, new Headers({ host: 'null' }))).toBe(false);
+  });
+
+  it('lets Sec-Fetch-Site decide when the browser sends it', () => {
+    // A proxy that rewrites Host to the upstream address: only the browser's verdict names the page.
+    const proxied = new Headers({ host: '127.0.0.1:3000', 'sec-fetch-site': 'same-origin' });
+    expect(checkOrigin('https://dit.example.org', NEXT_URL, proxied)).toBe(true);
+    // A page on the same host but another scheme is cross-site for the browser, though Host matches.
+    for (const site of ['cross-site', 'same-site', 'none', '']) {
+      const headers = new Headers({ host: 'dit.example.org', 'sec-fetch-site': site });
+      expect(checkOrigin('http://dit.example.org', NEXT_URL, headers)).toBe(false);
+      expect(checkOrigin('http://localhost:3000', NEXT_URL, headers)).toBe(false);
+    }
+    // A malformed Origin fails whatever Sec-Fetch-Site says; an absent one passes.
+    expect(checkOrigin('null', NEXT_URL, new Headers({ 'sec-fetch-site': 'same-origin' }))).toBe(false);
+    expect(checkOrigin(null, NEXT_URL, new Headers({ 'sec-fetch-site': 'cross-site' }))).toBe(true);
   });
 
   it('keys clients by x-forwarded-for, then x-real-ip, then one shared key', () => {

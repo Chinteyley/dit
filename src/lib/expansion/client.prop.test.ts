@@ -152,7 +152,10 @@ describe('expansion client properties', { timeout: 60_000 }, () => {
           await settle();
           if (step.kind === 'text') currentText = step.text;
           else currentContext = CONTEXTS[step.context] ?? [];
-          if (currentText !== latest) {
+          // A new prepared context restarts the timer too, unless the text is blank (review v1).
+          const contextChanged =
+            currentText === latest && refTrim(currentText) !== '' && refKey('', currentContext) !== refKey('', context);
+          if (currentText !== latest || contextChanged) {
             latest = currentText;
             due = now + 300;
           }

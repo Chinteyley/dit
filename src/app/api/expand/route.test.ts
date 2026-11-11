@@ -34,6 +34,23 @@ describe('POST /api/expand', () => {
     expect(await response.json()).toStrictEqual({ error: 'not_configured' });
   });
 
+  it('accepts a same-origin page opened by LAN address, where Next.js sets request.url to localhost', async () => {
+    vi.stubEnv('DIT_LLM_API_KEY', undefined);
+    // What `next start` and `next dev` hand the route outside Vercel: the internal URL, the real Host.
+    const lan = (origin: string): Request =>
+      new Request('http://localhost:3000/api/expand', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', host: '192.168.1.20:3000', origin, 'x-forwarded-for': '192.168.1.30' },
+        body,
+      });
+    const same = await POST(lan('http://192.168.1.20:3000'));
+    expect(same.status).toBe(503);
+    expect(await same.json()).toStrictEqual({ error: 'not_configured' });
+    const cross = await POST(lan('https://evil.test'));
+    expect(cross.status).toBe(403);
+    expect(await cross.json()).toStrictEqual({ error: 'forbidden_origin' });
+  });
+
   it('logs one line with only the status and latency', async () => {
     vi.stubEnv('DIT_LLM_API_KEY', '');
     await POST(request({ 'x-forwarded-for': '203.0.113.11' }));

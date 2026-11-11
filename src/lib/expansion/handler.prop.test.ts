@@ -56,45 +56,92 @@ const apiKeyArb = fc
 const ipArb = fc.tuple(fc.nat(255), fc.nat(255), fc.nat(255), fc.nat(255)).map((parts) => parts.join('.'));
 
 describe('route handler properties', () => {
-  it('passes the origin check exactly for an absent or same-origin Origin', () => {
+  it('passes the origin check exactly for an absent Origin or one that names this server', () => {
     // Feature: expansion, Property 18: The origin check passes exactly same-origin or absent Origin
+    const defaultPortOf = (scheme: string): number => (scheme === 'https' ? 443 : 80);
+    /** A plain origin by its parts (effective port), or an absent or malformed header. */
+    type OriginCase =
+      | { readonly kind: 'absent'; readonly origin: null }
+      | { readonly kind: 'malformed'; readonly origin: string }
+      | {
+          readonly kind: 'plain';
+          readonly origin: string;
+          readonly scheme: string;
+          readonly host: string;
+          readonly port: number;
+          readonly matchesUrl: boolean;
+        };
     const caseArb = fc
       .record({ scheme: fc.constantFrom('http', 'https'), host: hostArb, port: portArb })
       .chain(({ scheme, host, port }) => {
-        const defaultPort = scheme === 'https' ? 443 : 80;
+        const defaultPort = defaultPortOf(scheme);
         const effective = port ?? defaultPort;
         const url = `${scheme}://${host}${port === undefined ? '' : `:${port}`}/api/expand`;
+        const plain = (origin: string, parts: { scheme: string; host: string; port: number }, matchesUrl: boolean): OriginCase => ({
+          kind: 'plain',
+          origin,
+          ...parts,
+          matchesUrl,
+        });
         const sameArb = fc
           .tuple(randomCase(scheme), randomCase(host), fc.constantFrom('none', 'explicit', 'implicit'), fc.boolean())
           .map(([s, h, portStyle, slash]) => {
-            const shownPort =
-              portStyle === 'explicit' || effective !== defaultPort ? `:${effective}` : '';
-            return { origin: `${s}://${h}${shownPort}${slash ? '/' : ''}`, expected: true };
+            const shownPort = portStyle === 'explicit' || effective !== defaultPort ? `:${effective}` : '';
+            return plain(`${s}://${h}${shownPort}${slash ? '/' : ''}`, { scheme, host, port: effective }, true);
           });
         const otherScheme = scheme === 'https' ? 'http' : 'https';
         const differentArb = fc.oneof(
-          fc.constant({ origin: `${otherScheme}://${host}:${effective}`, expected: false }),
-          hostArb.filter((h) => h !== host).map((h) => ({ origin: `${scheme}://${h}:${effective}`, expected: false })),
+          fc.constant(plain(`${otherScheme}://${host}:${effective}`, { scheme: otherScheme, host, port: effective }, false)),
+          hostArb.filter((h) => h !== host).map((h) => plain(`${scheme}://${h}:${effective}`, { scheme, host: h, port: effective }, false)),
           fc
             .integer({ min: 1, max: 65_535 })
             .filter((p) => p !== effective)
-            .map((p) => ({ origin: `${scheme}://${host}:${p}`, expected: false })),
-          fc.constantFrom('/x', '/api/expand', '/?a=1', '/#f', '?q', '#frag').map((suffix) => ({
-            origin: `${scheme}://${host}:${effective}${suffix}`,
-            expected: false,
-          })),
-          fc.constant({ origin: `${scheme}://user:pw@${host}:${effective}`, expected: false }),
-          fc.constantFrom('null', '', ' ', 'garbage', '://', 'file:///', 'data:text/plain,hi', `${host}`).map((origin) => ({ origin, expected: false })),
-          fc.string().map((origin) => ({ origin, expected: false })),
+            .map((p) => plain(`${scheme}://${host}:${p}`, { scheme, host, port: p }, false)),
         );
-        return fc.tuple(
-          fc.constant(url),
-          fc.oneof(fc.constant({ origin: null, expected: true }), sameArb, differentArb),
-        );
+        const malformedArb = fc.oneof(
+          fc.constantFrom('/x', '/api/expand', '/?a=1', '/#f', '?q', '#frag').map((suffix) => `${scheme}://${host}:${effective}${suffix}`),
+          fc.constant(`${scheme}://user:pw@${host}:${effective}`),
+          fc.constantFrom('null', '', ' ', 'garbage', '://', 'file:///', 'data:text/plain,hi', `${host}`, `${scheme}:${host}`),
+          fc.string().filter((s) => !s.includes('://')),
+        ).map((origin): OriginCase => ({ kind: 'malformed', origin }));
+        const originArb = fc.oneof(fc.constant<OriginCase>({ kind: 'absent', origin: null }), sameArb, differentArb, malformedArb);
+        // The Host header a browser would send: a hostname with or without a port, built from parts.
+        return originArb.chain((origin) => {
+          const hostnames = [host, ...(origin.kind === 'plain' ? [origin.host] : [])];
+          const ports = [effective, ...(origin.kind === 'plain' ? [origin.port] : [])];
+          const hostHeaderArb = fc
+            .record({
+              hostname: fc.oneof(fc.constantFrom(...hostnames), hostArb).chain(randomCase),
+              port: fc.option(fc.oneof(fc.constantFrom(...ports, 80, 443), fc.integer({ min: 1, max: 65_535 })), { nil: undefined }),
+            })
+            .map(({ hostname, port: p }) => ({ hostname, port: p, header: p === undefined ? hostname : `${hostname}:${p}` }));
+          return fc.record({
+            url: fc.constant(url),
+            origin: fc.constant(origin),
+            host: fc.option(hostHeaderArb, { nil: undefined, freq: 2 }),
+            fetchSite: fc.option(fc.constantFrom('same-origin', 'SAME-ORIGIN', 'cross-site', 'same-site', 'none'), {
+              nil: undefined,
+              freq: 2,
+            }),
+          });
+        });
       });
     fc.assert(
-      fc.property(caseArb, ([url, { origin, expected }]) => {
-        expect(checkOrigin(origin, url)).toBe(expected);
+      fc.property(caseArb, ({ url, origin, host, fetchSite }) => {
+        const headers = new Headers();
+        if (host !== undefined) headers.set('host', host.header);
+        if (fetchSite !== undefined) headers.set('sec-fetch-site', fetchSite);
+        let expected: boolean;
+        if (origin.kind === 'absent') expected = true;
+        else if (origin.kind === 'malformed') expected = false;
+        else if (fetchSite !== undefined) expected = fetchSite.toLowerCase() === 'same-origin';
+        else
+          expected =
+            origin.matchesUrl ||
+            (host !== undefined &&
+              host.hostname.toLowerCase() === origin.host &&
+              (host.port ?? defaultPortOf(origin.scheme)) === origin.port);
+        expect(checkOrigin(origin.origin, url, headers)).toBe(expected);
       }),
       { numRuns: PROP_RUNS },
     );
