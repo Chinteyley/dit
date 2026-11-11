@@ -5,8 +5,8 @@ import { PROP_RUNS, engineFor, feed, inputSequenceArb, validConfigArb } from './
 
 function expectedDeadline(state: DecoderState): number | null {
   if (state.switchDown || state.lastRelease === null) return null;
-  if (state.buffer !== '') return state.lastRelease + 2 * Math.max(state.estimates.dotEstimate, state.startingUnit);
-  if (state.spaceEligible) return state.lastRelease + 4.5 * Math.max(state.estimates.dotEstimate, state.startingUnit);
+  if (state.buffer !== '') return state.lastRelease + 2 * Math.max(state.estimates.dotEstimate, state.gapUnitFloor);
+  if (state.spaceEligible) return state.lastRelease + 4.5 * Math.max(state.estimates.dotEstimate, state.gapUnitFloor);
   return null;
 }
 

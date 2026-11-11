@@ -38,8 +38,8 @@ describe('timing properties', () => {
             dotEstimate: dot,
             dashEstimate: dash,
             dotDashThreshold: (dot + dash) / 2,
-            letterGapThreshold: 2 * Math.max(dot, 200),
-            wordGapThreshold: 4.5 * Math.max(dot, 200),
+            letterGapThreshold: 2 * dot,
+            wordGapThreshold: 4.5 * dot,
           });
         }
       }),
@@ -48,19 +48,37 @@ describe('timing properties', () => {
   });
 });
 
-// Feature: morse-engine, review 17.1: short presses do not accelerate thinking pauses.
-it('keeps calibrated fast dots together across pauses shorter than the starting letter gap', () => {
-  fc.assert(fc.property(fc.integer({ min: 60, max: 100 }), fc.integer({ min: 210, max: 390 }), (dot, gap) => {
-    const engine = engineFor({ startingWpm: 6, mode: 'fixed', initialDotEstimate: dot, initialDashEstimate: dot * 3 });
-    for (let i = 0; i < 3; i += 1) {
-      const start = i * (dot + gap);
-      expect(engine.press(start)).toEqual([]);
-      expect(engine.release(start + dot)).toEqual([{ type: 'symbol', symbol: '.' }]);
+// Feature: morse-engine, review 17.1: calibration sets the gap unit too.
+it('decodes calibrated fast letters across 240–350 ms letter pauses', () => {
+  fc.assert(fc.property(fc.integer({ min: 240, max: 350 }), (gap) => {
+    const engine = engineFor({ startingWpm: 6, mode: 'fixed', initialDotEstimate: 80, initialDashEstimate: 240 });
+    let t = 0;
+    const chars: string[] = [];
+    for (const pattern of ['..', '.--', '-', '--.', '---']) {
+      for (const symbol of pattern) {
+        chars.push(...engine.press(t).flatMap((e) => e.type === 'char' ? [e.char] : []));
+        t += symbol === '.' ? 80 : 240;
+        engine.release(t);
+        t += 80;
+      }
+      t += gap - 80;
     }
-    const end = 2 * (dot + gap) + dot;
-    expect(engine.nextDeadline()).toBe(end + 400);
-    expect(engine.tick(end + 400)).toEqual([{ type: 'char', char: 's' }]);
-    expect(engine.nextDeadline()).toBe(end + 900);
-    expect(engine.tick(end + 900)).toEqual([{ type: 'space' }]);
+    chars.push(...engine.tick(t).flatMap((e) => e.type === 'char' ? [e.char] : []));
+    expect(chars.join('')).toBe('iwtgo');
+    expect(engine.estimates()).toMatchObject({ letterGapThreshold: 160, wordGapThreshold: 360 });
+  }), { numRuns: PROP_RUNS });
+});
+
+it('retains the Starting-WPM gap floor without calibration', () => {
+  fc.assert(fc.property(fc.integer({ min: 60, max: 100 }), (dot) => {
+    const engine = engineFor({ startingWpm: 6 });
+    let t = 0;
+    for (let i = 0; i < 20; i += 1) {
+      engine.press(t);
+      engine.release(t + dot);
+      t += dot + 80;
+    }
+    expect(engine.estimates().dotEstimate).toBeLessThan(200);
+    expect(engine.estimates()).toMatchObject({ letterGapThreshold: 400, wordGapThreshold: 900 });
   }), { numRuns: PROP_RUNS });
 });

@@ -322,8 +322,8 @@ Algorithm. `t = normalizedTokens(text)`. Return the first rule that matches (Req
 
 1. `t.length === 0` → `empty`.
 2. `t.length === 1`, `2 ≤ t[0].length ≤ 12`, `/^[a-z]+$/.test(t[0])`, and `!isKnownWord(t[0])` → `initials` with `initials = t[0]`.
-3. `2 ≤ t.length ≤ 12` and every token matches `/^[a-z]$/` → `initials` with `initials = t.join('')`.
-4. `last = t[t.length - 1]`. If `!isKnownWord(last) && isProperPrefixOfSomeWord(last)` → `partial`.
+3. Multiple all-letter tokens totalling 2–12 letters → `initials` with `initials = t.join('')` if not every leading token is known, or all tokens are single letters.
+4. `last = t[t.length - 1]`. If every leading token is known and `!isKnownWord(last) && isProperPrefixOfSomeWord(last)` → `partial`.
 5. Otherwise → `words`.
 
 Only `initials` objects carry an `initials` field (4.10). The function reads only `t`, so equal tokens give equal classifications (4.1). It returns a fresh object with a fresh `tokens` array every time and never mutates its input.
@@ -1165,4 +1165,8 @@ These corrections supersede earlier conflicting criteria in this document.
 
 Use the shared phrase index for exact two-letter initials. Join eligible paused tokens before partial/words rules. Snapshot prepared context and capture a request generation at start; increment and abort on update, including context-only changes and text changing away and back. Never deliver or cache an older generation. Missing Origin is forbidden. The live provider check is complete; automated tests use fakes.
 
-Review clarification: `ci` is a prefix of city, so an exact joined phrase-bank match also permits paused initials when no multi-letter token is a known word (`ci hsw`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.
+Round-2 clarification: paused initials depend on whether every leading token is a known word, not individual multi-letter prefixes or exact phrase matches (`ci hs`, `iw th`, `iwt go`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.
+
+Round 2: compute `leadingWords = tokens.slice(0, -1).every(isKnownWord)`. Join all-letter multi-token inputs of 2–12 letters when leadingWords is false; require leadingWords for partial. Keep single-token phrase-bank precedence. Test varied pause splits and real phrase controls.
+
+Round-2 compatibility: WHEN all tokens are single letters totalling 2–12 letters, THE Classifier SHALL retain the existing initials rule, including `i a` and `i b`; the known-leading-word rule governs other paused groups and partial phrases.

@@ -59,7 +59,7 @@ describe('space properties', () => {
               expect(spacesSinceRelease).toBe(1);
               expect(input.type === 'press' || input.type === 'tick').toBe(true);
               expect(before.lastRelease).not.toBeNull();
-              const wordGap = thresholds(before.estimates, before.startingUnit).wordGapThreshold;
+              const wordGap = thresholds(before.estimates, before.gapUnitFloor).wordGapThreshold;
               expect(input.t >= (before.lastRelease ?? Infinity) + wordGap).toBe(true);
               expect(index).toBe(events.length - 1);
               charSinceSpace = false;

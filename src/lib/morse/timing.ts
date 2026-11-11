@@ -24,8 +24,8 @@ export function unitToWpm(unit: number): number {
   return PARIS_MS / unit;
 }
 
-export function thresholds(e: Estimates, startingUnit = DEFAULT_UNIT): EstimateSnapshot {
-  const gapUnit = Math.max(e.dotEstimate, startingUnit);
+export function thresholds(e: Estimates, gapUnitFloor = DEFAULT_UNIT): EstimateSnapshot {
+  const gapUnit = Math.max(e.dotEstimate, gapUnitFloor);
   return {
     dotEstimate: e.dotEstimate,
     dashEstimate: e.dashEstimate,

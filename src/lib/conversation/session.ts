@@ -109,8 +109,9 @@ function isIndex(state: SessionState, index: number): boolean {
 
 /** Letter-by-letter SOS is reserved at the end of a word, before suggestions or speech. */
 function typedSos(state: SessionState): Transition | null {
-  if (!/(^| )sos$/.test(trimmedText(state))) return null;
-  const text = trimmedText(state).slice(0, -3);
+  const match = /(?:^|(?<= ))s *o *s$/.exec(trimmedText(state));
+  if (match === null) return null;
+  const text = trimmedText(state).slice(0, match.index);
   return { state: clearSuggestions(withText(withoutPattern(state), text)), effects: ALARM };
 }
 

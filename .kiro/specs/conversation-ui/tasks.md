@@ -516,3 +516,7 @@ These corrections supersede earlier conflicting criteria in this document.
   - Verified: `session-controller.prop.test.ts (echo/cooldown)`.
 - [x] 26.5 Clamp incoming blink down/up timestamps to the engine last accepted input timestamp so delayed video frames cannot drop presses as past input.
   - Verified: `session-controller.prop.test.ts (real-engine delayed blink)`.
+
+- [x] 27.1 Recognise pause-split SOS at space/Speak while preserving preceding text, with a focused property regression.
+- [x] 27.2 Limit normalized sentence echo rejection to five seconds, with a focused property regression.
+- [x] 27.3 Rewrite last-round review requirements in conditional EARS form.

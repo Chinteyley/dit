@@ -254,3 +254,5 @@ These corrections supersede earlier conflicting criteria in this document.
 
 - [x] 17.1 Compute letter and word gap thresholds as 2 and 4.5 times max(dotEstimate, 1200 / startingWpm), while dot/dash classification continues to use calibrated/adapted press estimates. Deadlines and every gap comparison use the same floor.
   - Verified: `timing.prop.test.ts; deadline/jitter/roundtrip/reset/tick-independence properties`.
+
+- [x] 18.1 Base the gap floor on calibration when supplied, otherwise Starting WPM; verify fast calibrated iwtgo and retain uncalibrated/jitter properties. Update timing steering, glossary and EARS criteria.

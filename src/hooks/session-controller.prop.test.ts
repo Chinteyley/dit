@@ -507,6 +507,9 @@ it('drops delayed speech echoes and accepts a partner after the cooldown', () =>
     expect(r.controller.getSnapshot().session.turns).toHaveLength(1);
     r.speechInput.emitFinal('Would you like water?');
     expect(r.controller.getSnapshot().session.turns.at(-1)).toMatchObject({ role: 'partner', text: 'Would you like water?' });
+    r.advance(3_500);
+    r.speechInput.emitFinal(' HI! ');
+    expect(r.controller.getSnapshot().session.turns.at(-1)).toMatchObject({ role: 'partner', text: 'HI!' });
     r.controller.dispose();
   }), { numRuns: PROP_RUNS });
 });

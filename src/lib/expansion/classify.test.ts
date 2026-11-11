@@ -33,12 +33,12 @@ describe('classify', () => {
   it('reads complete words, digits and mixed input as words', () => {
     expect(classify('i want water')).toStrictEqual({ kind: 'words', tokens: ['i', 'want', 'water'] });
     expect(classify('123')).toStrictEqual({ kind: 'words', tokens: ['123'] });
-    expect(classify('i w water')).toStrictEqual({ kind: 'words', tokens: ['i', 'w', 'water'] });
+    expect(classify('i w water')).toStrictEqual({ kind: 'initials', tokens: ['i', 'w', 'water'], initials: 'iwwater' });
   });
 
   it('reads 13 single letters by their last letter', () => {
     expect(classify('b c d e f g h j k l m n a').kind).toBe('words');
-    expect(classify('b c d e f g h j k l m n w').kind).toBe('partial');
+    expect(classify('b c d e f g h j k l m n w').kind).toBe('words');
   });
 
   it('reads a 13-letter token by whether it starts a word', () => {

@@ -398,4 +398,7 @@ These corrections supersede earlier conflicting criteria in this document.
 - [x] 20.4 Record the completed live default-model check: deepseek-v4p1-flash-1017 returned correct top suggestions for iwtgo, cihsw, mbh, tyfc and wtt in 0.7–2.4 seconds (user-provided verification).
   - Verified: `user-provided completed live check; no new provider call`.
 
-Review clarification: `ci` is a prefix of city, so an exact joined phrase-bank match also permits paused initials when no multi-letter token is a known word (`ci hsw`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.
+Round-2 clarification: paused initials depend on whether every leading token is a known word, not individual multi-letter prefixes or exact phrase matches (`ci hs`, `iw th`, `iwt go`). Remove the contraction token `im` from the word list; it has no exact two-letter phrase-bank entry and should follow the existing unknown-token initials rule.
+
+- [x] 21.1 Correct paused-initial and partial classification using known leading words; cover review examples, phrase controls and on-device expansion in focused regressions.
+- [x] 21.2 Rewrite last-round review requirements as conditional EARS criteria.

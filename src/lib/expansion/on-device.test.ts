@@ -26,6 +26,8 @@ describe('expandOnDevice with initials', () => {
   it('puts "I want to go outside." first for iwtgo and i w t g o', () => {
     expect(expandOnDevice('iwtgo', [])[0]).toBe('I want to go outside.');
     expect(expandOnDevice('i w t g o', [])[0]).toBe('I want to go outside.');
+    expect(expandOnDevice('iwt go', [])[0]).toBe('I want to go outside.');
+    expect(expandOnDevice('iw th', [])).toEqual(expandOnDevice('iwth', []));
     expect(expandOnDevice('I.W.T.G.O!', [])[0]).toBe('I want to go outside.');
   });
 

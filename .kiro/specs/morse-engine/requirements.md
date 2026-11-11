@@ -26,8 +26,9 @@ The source of truth for numbers and behaviour is `.kiro/steering/morse-engine.md
 - **Dot_Estimate**: The Engine's current estimate, in milliseconds, of the user's dot press length.
 - **Dash_Estimate**: The Engine's current estimate, in milliseconds, of the user's dash press length.
 - **Dot_Dash_Threshold**: `(Dot_Estimate + Dash_Estimate) / 2`.
-- **Letter_Gap_Threshold**: `2 × Dot_Estimate`.
-- **Word_Gap_Threshold**: `4.5 × Dot_Estimate`.
+- **Gap_Unit**: `max(Dot_Estimate, gap floor)`, where the floor is the guarded calibrated dot supplied at engine creation, or Starting_Unit when there is no calibration.
+- **Letter_Gap_Threshold**: `2 × Gap_Unit`.
+- **Word_Gap_Threshold**: `4.5 × Gap_Unit`.
 - **Estimate_Guards**: The rules applied, in this order, whenever Dot_Estimate or Dash_Estimate is set: (1) clamp both estimates to `[MIN_UNIT, 3 × MAX_UNIT]`; (2) clamp Dot_Estimate to at most MAX_UNIT; (3) if `Dash_Estimate < 1.5 × Dot_Estimate`, set `Dash_Estimate = 1.5 × Dot_Estimate`.
 - **Adaptation_Rate (α)**: The exponential-moving-average weight used in adaptation. Default 0.15.
 - **Adaptive_Mode**: The Engine mode in which Dot_Estimate and Dash_Estimate are updated from classified presses. The default mode.
@@ -276,4 +277,4 @@ The source of truth for numbers and behaviour is `.kiro/steering/morse-engine.md
 
 These corrections supersede earlier conflicting criteria in this document.
 
-17.1. THE app SHALL satisfy: Compute letter and word gap thresholds as 2 and 4.5 times max(dotEstimate, 1200 / startingWpm), while dot/dash classification continues to use calibrated/adapted press estimates. Deadlines and every gap comparison use the same floor.
+17.1. WHEN the Engine computes a deadline or gap threshold, THE Engine SHALL use letter and word gaps of 2 and 4.5 times max(dotEstimate, gap floor), with the guarded calibrated dot as floor when initial estimates are supplied and the Starting-WPM unit otherwise; WHEN Starting WPM changes, THE session SHALL clear calibration before creating the engine.

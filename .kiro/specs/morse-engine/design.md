@@ -164,7 +164,7 @@ export interface Estimates {
 
 export interface EstimateSnapshot extends Estimates {
   readonly dotDashThreshold: number;   // (dot + dash) / 2
-  readonly letterGapThreshold: number; // 2 × dot
+  readonly letterGapThreshold: number; // 2 × gap unit
   readonly wordGapThreshold: number;   // 4.5 × dot
 }
 
@@ -831,4 +831,4 @@ Property 20 and 21 at 200 runs with up to 200 characters stay well below 1 s eac
 
 These corrections supersede earlier conflicting criteria in this document.
 
-Keep startingUnit in DecoderState across reset/adaptation. Pass it to thresholds for deadlines, settlement and estimates. Fixed-speed jitter tests with seeded estimates must configure a matching starting speed (or a faster one) when testing units outside the starting-WPM range.
+Keep gapUnitFloor in DecoderState across reset/adaptation. Seed it from the guarded initial dot estimate when calibrated, otherwise from Starting WPM. Pass it to thresholds for deadlines, settlement and estimates. Test calibrated 80/240 ms iwtgo with 240–350 ms letter gaps and uncalibrated Starting-WPM pauses.

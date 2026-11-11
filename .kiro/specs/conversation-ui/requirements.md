@@ -577,10 +577,10 @@ Added on 2026-11-11 in the design polish pass.
 
 These corrections supersede earlier conflicting criteria in this document.
 
-26.1. THE app SHALL satisfy: An explicit change to Starting WPM clears calibrated estimates in memory and the persisted onboarding record, retaining completion and input choice, before replacing the engine. Reload must use the new starting speed.
-26.2. THE app SHALL satisfy: Raise SOS when the last typed word is exactly sos and a word gap or speak command follows; remove only that word, clear stale suggestions, preserve preceding text and do not speak it.
-26.3. THE app SHALL satisfy: Notify expansion immediately whenever conversation context changes, including clear history; invalidate deleted context before any debounced request can send it.
-26.4. THE app SHALL satisfy: Drop final Listen transcripts during speech, within 1500 ms after speech ends, or matching the last spoken sentence after case/whitespace/punctuation normalization.
-26.5. THE app SHALL satisfy: Clamp incoming blink down/up timestamps to the engine last accepted input timestamp so delayed video frames cannot drop presses as past input.
+26.1. WHEN Starting WPM explicitly changes, THE Session_Controller SHALL clear calibrated estimates in memory and the persisted onboarding record, retain completion and input choice, and then replace the engine so reload uses the new speed.
+26.2. WHEN the final typed letters are s, o, s with optional spaces between them and a word gap or Speak follows, THE Session_Reducer SHALL raise SOS, remove that suffix, clear suggestions and preserve preceding text without speaking it.
+26.3. WHEN conversation context changes, including clear history, THE Session_Controller SHALL notify expansion immediately and invalidate deleted context before any debounced request sends it.
+26.4. WHEN a final Listen transcript arrives during speech or within 1500 ms after speech ends, THE Session_Controller SHALL drop it; WHEN it matches the last spoken sentence after case, whitespace and punctuation normalization and arrives less than 5 seconds after speech ends, THE controller SHALL drop it; WHEN that matching transcript arrives at or after 5 seconds, THE controller SHALL accept it.
+26.5. WHEN an incoming blink timestamp precedes the engine last accepted timestamp, THE Session_Controller SHALL clamp it to that timestamp so delayed frames cannot drop presses.
 
 Review integration detail: setup cancellation snapshots the session engine’s current adapted estimates through getEstimates(), rather than rereading storage. Practice and Legend are non-modal panels beside the keying surface; focus returns to that surface for Speak-code acceptance/Start. Learning a switch re-enables its source after a previous key/tap or blink choice disabled it.

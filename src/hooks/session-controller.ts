@@ -447,7 +447,8 @@ export function createSessionController(deps: ControllerDeps): SessionController
       // Our own voice must not become a partner Turn (Req 18.7); blank finals are dropped (Req 18.5).
       if (speechOutput.isSpeaking() || clock() - speechEndedAt < 1_500) return;
       const trimmed = trimWhitespace(text);
-      if (trimmed !== '' && normalizedSentence(trimmed) !== lastSpokenSentence) dispatch({ type: 'partner-line', text: trimmed });
+      const echo = clock() - speechEndedAt < 5_000 && normalizedSentence(trimmed) === lastSpokenSentence;
+      if (trimmed !== '' && !echo) dispatch({ type: 'partner-line', text: trimmed });
     });
   };
 

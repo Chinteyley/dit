@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { step, type EngineInput } from './decoder';
+import { step, type DecoderState, type EngineInput } from './decoder';
 import {
   PROP_RUNS,
   engineFor,
@@ -36,23 +36,21 @@ describe('reset properties', () => {
           expect(after.spaceEligible).toBe(false);
           expect(engine.nextDeadline()).toBeNull();
 
-          // After reset the engine behaves like a fresh one that starts from the learned estimates.
+          // Reset preserves the original gap floor as well as the learned press estimates.
+          expect(after.gapUnitFloor).toBe(before.gapUnitFloor);
           const start = (before.lastT ?? 0) + gap;
           const shifted = suffix.inputs.map(
             (input): EngineInput => (input.type === 'reset' ? input : { ...input, t: start + input.t }),
           );
-          const fresh = engineFor({
-            mode: before.mode,
-            startingWpm: config.startingWpm ?? 6,
-            adaptationRate: before.alpha,
-            initialDotEstimate: before.estimates.dotEstimate,
-            initialDashEstimate: before.estimates.dashEstimate,
+          let baselineState: DecoderState = { ...after, lastT: null };
+          const baselineCalls = shifted.map((input) => {
+            const result = step(baselineState, input);
+            baselineState = result.state;
+            return result.events;
           });
-          expect(fresh.estimates()).toStrictEqual(estimates);
           const resumed = feed(engine, shifted);
-          const baseline = feed(fresh, shifted);
-          expect(resumed.perCall).toStrictEqual(baseline.perCall);
-          expect(engine.estimates()).toStrictEqual(fresh.estimates());
+          expect(resumed.perCall).toStrictEqual(baselineCalls);
+          expect(engine.snapshot().estimates).toStrictEqual(baselineState.estimates);
 
           const firstSpace = resumed.events.findIndex((event) => event.type === 'space');
           const firstChar = resumed.events.findIndex((event) => event.type === 'char');

@@ -16,11 +16,12 @@ function refClassification(tokens: readonly string[]): { kind: InputClassificati
   if (tokens.length === 1 && only.length >= 2 && only.length <= 12 && /^[a-z]+$/.test(only) && (!WORD_LIST.includes(only) || (only.length === 2 && PHRASE_BANK.some((p) => initialsOf(p.text) === only)))) {
     return { kind: 'initials', initials: only };
   }
-  if (tokens.length >= 2 && tokens.join('').length <= 12 && tokens.every((token) => /^[a-z]+$/.test(token) && (token.length === 1 || (!WORD_LIST.includes(token) && (!WORD_LIST.some((word) => word.length > token.length && word.startsWith(token)) || PHRASE_BANK.some((p) => initialsOf(p.text) === tokens.join(''))))))) {
+  const leadingWords = tokens.slice(0, -1).every((token) => WORD_LIST.includes(token));
+  if (tokens.length >= 2 && tokens.join('').length <= 12 && (!leadingWords || tokens.every((token) => token.length === 1)) && tokens.every((token) => /^[a-z]+$/.test(token))) {
     return { kind: 'initials', initials: tokens.join('') };
   }
   const last = tokens[tokens.length - 1] ?? '';
-  if (!WORD_LIST.includes(last) && WORD_LIST.some((word) => word.length > last.length && word.startsWith(last))) {
+  if (leadingWords && !WORD_LIST.includes(last) && WORD_LIST.some((word) => word.length > last.length && word.startsWith(last))) {
     return { kind: 'partial' };
   }
   return { kind: 'words' };
@@ -93,14 +94,19 @@ describe('classifier properties', () => {
 });
 
 // Feature: expansion, review 20.1: pause placement preserves eligible initials.
-it('recognises paused initials and exact two-letter phrase initials', () => {
-  fc.assert(fc.property(fc.constantFrom('iwtgo', 'cihsw'), fc.integer({ min: 1, max: 4 }), (text, at) => {
+it('recognises paused initials unless every leading token is a known word', () => {
+  fc.assert(fc.property(fc.constantFrom('iwtgo', 'cihsw', 'tyfc', 'iwth'), fc.integer({ min: 1, max: 4 }), (text, at) => {
+    if (at >= text.length) return;
     const paused = `${text.slice(0, at)} ${text.slice(at)}`;
     const tokens = normalizedTokens(paused);
-    const eligible = tokens.every((t) => t.length === 1 || (!WORD_LIST.includes(t) && !WORD_LIST.some((w) => w.startsWith(t) && w.length > t.length)));
-    if (eligible) expect(classify(paused)).toMatchObject({ kind: 'initials', initials: text });
+    if (!tokens.slice(0, -1).every((t) => WORD_LIST.includes(t))) {
+      expect(classify(paused)).toMatchObject({ kind: 'initials', initials: text });
+    }
   }), { numRuns: PROP_RUNS });
-  for (const text of ['iw tgo', 'i wtgo', 'ci hsw']) expect(classify(text).kind).toBe('initials');
+  for (const text of ['iwt go', 'i w t go', 'ty fc', 'ci hs', 'iw th']) {
+    expect(classify(text)).toMatchObject({ kind: 'initials', initials: text.replaceAll(' ', '') });
+  }
   for (const text of ['it', 'is', 'if', 'in', 'id', 'im']) expect(classify(text)).toMatchObject({ kind: 'initials', initials: text });
-  for (const text of ['i want', 'water']) expect(classify(text).kind).toBe('words');
+  for (const text of ['i want', 'water', 'go home']) expect(classify(text).kind).toBe('words');
+  expect(classify('can i ha').kind).toBe('partial');
 });

@@ -23,13 +23,15 @@ Nominal element lengths, in units:
 | Letter gap | 3 | silence `≥ letterGapThreshold` → commit the character |
 | Word gap | 7 | silence `≥ wordGapThreshold` → emit one space |
 
+The gap floor is the guarded calibrated dot at engine creation, or `1200 / startingWpm` without calibration. `gapUnit = max(dotEstimate, gap floor)`; adaptation may lengthen gaps but never shorten them below that baseline.
+
 Thresholds (with the default, non-adapted estimator):
 
 - `dotDashThreshold = (dotEstimate + dashEstimate) / 2` → **2u**
-- `letterGapThreshold = 2 × dotEstimate` → **2u**
-- `wordGapThreshold = 4.5 × dotEstimate` → **4.5u**
+- `letterGapThreshold = 2 × gapUnit` → **2u**
+- `wordGapThreshold = 4.5 × gapUnit` → **4.5u**
 
-Why these values: with every element jittered by ±30% of its nominal length, dots fall in [0.7, 1.3]u and dashes in [2.1, 3.9]u; intra-character gaps in [0.7, 1.3]u, letter gaps in [2.1, 3.9]u and word gaps in [4.9, 9.1]u. Each threshold sits strictly between neighbouring ranges, so decoding at fixed speed survives ±30% jitter. Do not change a threshold without re-checking this argument and the jitter property test.
+Why these values: with every element jittered by ±30% of its nominal length, dots fall in [0.7, 1.3]u and dashes in [2.1, 3.9]u; intra-character gaps in [0.7, 1.3]u, letter gaps in [2.1, 3.9]u and word gaps in [4.9, 9.1]u. Each threshold sits strictly between neighbouring ranges, so decoding at fixed speed survives ±30% jitter. This jitter argument applies when press and gap units agree; calibration supplies the gap floor, while uncalibrated input retains the Starting-WPM floor. Verify both paths with the jitter and calibrated-gap properties.
 
 ## Event model
 

@@ -18,8 +18,8 @@ const INITIALS_MAX = 12;
  * in order and the first that holds wins:
  * 1. no tokens: empty;
  * 2. one unknown all-letter token of 2 to 12 letters, or exact two-letter phrase initials: initials;
- * 3. paused all-letter tokens without multi-letter words/prefixes, 2–12 letters total: initials;
- * 4. last token not a Known_Word but a Proper_Prefix of one: partial;
+ * 3. 2–12 paused letters, all single-letter tokens or an unknown leading token: initials;
+ * 4. all leading tokens known; last token an unknown Proper_Prefix: partial;
  * 5. otherwise: words.
  */
 export function classify(text: string): InputClassification {
@@ -32,10 +32,11 @@ export function classify(text: string): InputClassification {
     return { kind: 'initials', tokens, initials: first };
   }
   const joined = tokens.join('');
+  const leadingWords = tokens.slice(0, -1).every(isKnownWord);
   if (count >= 2 && joined.length >= INITIALS_MIN && joined.length <= INITIALS_MAX &&
-    tokens.every((token) => LETTERS.test(token) && (token.length === 1 || (!isKnownWord(token) && (!isProperPrefixOfSomeWord(token) || PHRASE_INDEX.some((phrase) => phrase.initials === joined)))))) {
+    (!leadingWords || tokens.every((token) => token.length === 1)) && tokens.every((token) => LETTERS.test(token))) {
     return { kind: 'initials', tokens, initials: tokens.join('') };
   }
-  if (!isKnownWord(last) && isProperPrefixOfSomeWord(last)) return { kind: 'partial', tokens };
+  if (leadingWords && !isKnownWord(last) && isProperPrefixOfSomeWord(last)) return { kind: 'partial', tokens };
   return { kind: 'words', tokens };
 }
