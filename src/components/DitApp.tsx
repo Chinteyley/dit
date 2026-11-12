@@ -26,6 +26,7 @@ import { isFailureStatus, type PressEvent, type SourceKind, type SourceStatus, t
 import { performanceClock } from '@/lib/input/browser';
 import { useInputSources } from '@/hooks/useInputSources';
 import { useMorseSession, type SessionOverrides } from '@/hooks/useMorseSession';
+import { useRetryWhenAllowed } from '@/hooks/useRetryWhenAllowed';
 import { HistoryView } from './HistoryView';
 import { KeyingSurface } from './KeyingSurface';
 import { ListenToggle } from './ListenToggle';
@@ -219,6 +220,13 @@ export function DitApp(props: DitAppProps) {
   useEffect(() => {
     pendingRef.current = input.pendingSince;
   }, [input.pendingSince]);
+
+  // Listen comes back on its own once the microphone is allowed, without a page reload.
+  useRetryWhenAllowed(
+    !snapshot.listen.on && snapshot.listen.message === 'permission-denied',
+    'microphone',
+    () => controller.setListen(true),
+  );
 
   useEffect(
     () => router.connect({ handlePress: controller.handlePress, discardInput: controller.discardInput }),

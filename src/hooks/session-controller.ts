@@ -137,7 +137,10 @@ export interface SessionController {
   updateInputSettings(input: InputSettings): void;
   /** From onboarding-and-safety calibration; null builds the Engine from the Starting_WPM defaults. */
   setInitialEstimates(estimates: Estimates | null): void;
-  /** Current calibrated/adapted press timing, for cancelling setup without losing the prior rhythm. */
+  /**
+   * The calibration in effect (null for Starting_WPM defaults), so cancelling setup restores it.
+   * Not the adapted estimates: restoring those as a calibration would also shrink the gap floor.
+   */
   getEstimates(): Estimates | null;
   setListen(on: boolean): void;
   setSourceStatuses(statuses: Readonly<Record<SourceKind, SourceStatus>>): void;
@@ -616,8 +619,7 @@ export function createSessionController(deps: ControllerDeps): SessionController
     },
 
     getEstimates() {
-      const { dotEstimate, dashEstimate } = engine.estimates();
-      return { dotEstimate, dashEstimate };
+      return estimates;
     },
 
     setListen(on) {

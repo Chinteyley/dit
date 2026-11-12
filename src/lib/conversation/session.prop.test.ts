@@ -491,13 +491,13 @@ describe('Session_Reducer properties', { timeout: 60_000 }, () => {
 
 // Feature: conversation-ui, review 26.2: standalone typed SOS is reserved at word boundaries.
 it('alarms on a final sos word at a space or speak, preserving preceding text', () => {
-  fc.assert(fc.property(fc.constantFrom('', 'please ', 'help me '), fc.constantFrom('sos', 's o s', 'so s', 's os'), fc.boolean(), (prefix, sos, speak) => {
+  fc.assert(fc.property(fc.constantFrom('', 'please ', 'help me '), fc.constantFrom('sos', 's o s'), fc.boolean(), (prefix, sos, speak) => {
     const state = { ...INITIAL_SESSION, currentText: `${prefix}${sos}`, suggestions: ['Unrelated.'], highlight: 0 };
     const result = reduce(state, speak ? SPEAK : SPACE);
     expect(result.effects).toEqual([{ type: 'alarm' }]);
     expect(result.state.currentText).toBe(prefix);
     expect(result.state.suggestions).toEqual([]);
-    for (const text of ['sosx', 'xsos', 'sos help']) {
+    for (const text of ['sosx', 'xsos', 'sos help', 'so s', 'im so s', 's os']) {
       expect(reduce({ ...INITIAL_SESSION, currentText: text }, speak ? SPEAK : SPACE).effects).not.toContainEqual({ type: 'alarm' });
     }
   }), { numRuns: PROP_RUNS });
