@@ -224,6 +224,13 @@ describe('effects and the Engine', () => {
     expect(rig.engine().config).toEqual({ startingWpm: 6, mode: 'adaptive' });
   });
 
+  it('getEstimates reports the calibration in effect, not the adapted estimates', () => {
+    const rig = createControllerRig();
+    expect(rig.controller.getEstimates()).toBeNull();
+    rig.controller.setInitialEstimates({ dotEstimate: 150, dashEstimate: 450 });
+    expect(rig.controller.getEstimates()).toEqual({ dotEstimate: 150, dashEstimate: 450 });
+  });
+
   it('passes unknown patterns to the handler, ignoring its errors', () => {
     const rig = createControllerRig();
     rig.unknown.throwOnHandle = true;
