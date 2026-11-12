@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useRetryWhenAllowed } from '@/hooks/useRetryWhenAllowed';
 import { isFailureStatus } from '@/lib/input';
 import {
   BLINK_FAILURE_TEXT,
@@ -102,6 +103,11 @@ function blinkArea(state: OnboardingState, dispatch: InputStepProps['dispatch'])
  * confirmed.
  */
 export function InputStep({ state, dispatch }: InputStepProps) {
+  const cameraRefused =
+    state.selected === 'blink' && state.blinkPhase.kind !== 'idle' && state.blinkPhase.kind !== 'explained' &&
+    state.blinkPhase.status === 'permission-denied';
+  // Same as pressing "Try again" once the camera is allowed, so no page reload is needed.
+  useRetryWhenAllowed(cameraRefused, 'camera', () => dispatch({ type: 'camera-on' }));
   const extra = state.selected === 'switch' ? switchArea(state, dispatch) : state.selected === 'blink' ? blinkArea(state, dispatch) : null;
 
   return (

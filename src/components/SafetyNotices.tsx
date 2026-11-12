@@ -1,5 +1,11 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { SETUP_SAVE_FAILED_TEXT, TURN_ON_BLINK_CAMERA_LABEL, type OnboardingController } from '@/lib/onboarding';
+import { useRetryWhenAllowed } from '@/hooks/useRetryWhenAllowed';
+import {
+  BLINK_FAILURE_TEXT,
+  SETUP_SAVE_FAILED_TEXT,
+  TURN_ON_BLINK_CAMERA_LABEL,
+  type OnboardingController,
+} from '@/lib/onboarding';
 
 export interface SafetyNoticesProps {
   readonly onboarding: OnboardingController;
@@ -14,6 +20,12 @@ export interface SafetyNoticesProps {
  */
 export function SafetyNotices({ onboarding }: SafetyNoticesProps) {
   const { blinkResume, saveFailed } = useSyncExternalStore(onboarding.subscribe, onboarding.getView, onboarding.getView);
+  // Blink resumes once the camera is allowed, without a page reload.
+  useRetryWhenAllowed(
+    blinkResume.visible && blinkResume.reason === BLINK_FAILURE_TEXT['permission-denied'],
+    'camera',
+    () => onboarding.turnOnBlinkCamera(),
+  );
   useEffect(() => {
     let cancelled = false;
     const view = onboarding.getView();
