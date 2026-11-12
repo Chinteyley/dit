@@ -107,9 +107,13 @@ function isIndex(state: SessionState, index: number): boolean {
   return Number.isInteger(index) && index >= 0 && index < state.suggestions.length;
 }
 
-/** Letter-by-letter SOS is reserved at the end of a word, before suggestions or speech. */
+/**
+ * Letter-by-letter SOS is reserved at the end of a word, before suggestions or speech: `sos`, or
+ * `s o s` keyed with a pause after every letter. A partial split such as `so s` is left alone,
+ * because "so" followed by a word starting with s ("so sorry", "so scared") is common.
+ */
 function typedSos(state: SessionState): Transition | null {
-  const match = /(?:^|(?<= ))s *o *s$/.exec(trimmedText(state));
+  const match = /(?:^|(?<= ))(?:sos|s o s)$/.exec(trimmedText(state));
   if (match === null) return null;
   const text = trimmedText(state).slice(0, match.index);
   return { state: clearSuggestions(withText(withoutPattern(state), text)), effects: ALARM };
